@@ -12,6 +12,24 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 
+# Локализация
+LANGUAGE_CODE = 'ru-ru'
+TIME_ZONE = 'Europe/Moscow'  # или ваш часовой пояс
+USE_I18N = True
+USE_L10N = True
+USE_TZ = True
+
+# Форматы дат и чисел для русского языка
+DATE_FORMAT = 'd.m.Y'
+DATETIME_FORMAT = 'd.m.Y H:i'
+SHORT_DATE_FORMAT = 'd.m.Y'
+SHORT_DATETIME_FORMAT = 'd.m.Y H:i'
+
+# Разделители для чисел
+USE_THOUSAND_SEPARATOR = True
+THOUSAND_SEPARATOR = ' '
+DECIMAL_SEPARATOR = ','
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 

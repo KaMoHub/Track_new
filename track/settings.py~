@@ -28,10 +28,10 @@ SECRET_KEY = 'django-insecure--$^vkzxqsiok3#49#p1f%jyu_^5k*amx5(&=oqhcbx(vyd%l&v
 
 # SECURITY WARNING: don't run with debug turned on in production!
 
-
+DEBUG = True
 # ALLOWED_HOSTS = ['CDOMir.pythonanywhere.com', 'localhost'] # Замените 'yourusername' на ваше имя пользователя PA
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = 'RENDER' in os.environ # Будет True только на Render, иначе False
+# DEBUG = 'RENDER' in os.environ # Будет True только на Render, иначе False
 
 # Разрешаем хост Render и localhost для разработки
 ALLOWED_HOSTS = []
@@ -62,7 +62,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # <-- Добавьте эту строку
+    # 'whitenoise.middleware.WhiteNoiseMiddleware',  # <-- Добавьте эту строку
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
