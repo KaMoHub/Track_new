@@ -1,0 +1,63 @@
+<!-- templates/children/direction_confirm_delete.html -->
+{% extends 'base.html' %}
+
+{% block title %}Удаление направления - Путь к успеху{% endblock %}
+
+{% block page_title %}Удаление направления{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-exclamation-triangle"></i> Подтверждение удаления
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="lead">Вы действительно хотите удалить направление <strong>{{ direction.name }}</strong>?</p>
+
+                <!-- Проверяем наличие связанных записей -->
+                {% with related=direction.get_related_objects %}
+                    {% if related %}
+                        <div class="alert alert-warning">
+                            <h6><i class="bi bi-info-circle"></i> Внимание!</h6>
+                            <p>Направление имеет следующие связанные записи:</p>
+                            <ul>
+                                {% for key, value in related.items %}
+                                    <li>{{ key }}: {{ value }}</li>
+                                {% endfor %}
+                            </ul>
+                            <p>Сначала необходимо удалить эти записи, чтобы можно было удалить направление.</p>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Это действие нельзя будет отменить.</p>
+                    {% endif %}
+                {% endwith %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        {% with related=direction.get_related_objects %}
+                            {% if related %}
+                                <!-- Если есть связанные записи, показываем только кнопки отмены -->
+                                <a href="{% url 'children:direction_list' %}" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> Назад к списку
+                                </a>
+                            {% else %}
+                                <!-- Если нет связанных записей, показываем кнопку удаления -->
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="bi bi-trash"></i> Удалить
+                                </button>
+                                <a href="{% url 'children:direction_list' %}" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> Отмена
+                                </a>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

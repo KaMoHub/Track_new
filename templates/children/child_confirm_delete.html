@@ -1,0 +1,39 @@
+<!-- templates/children/child_confirm_delete.html -->
+{% extends 'base.html' %}
+
+{% block title %}Удаление ребенка - Путь к успеху{% endblock %}
+
+{% block page_title %}Удаление ребенка{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-exclamation-triangle"></i> Подтверждение удаления
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="lead">Вы действительно хотите удалить ребенка <strong>{{ child.fio }}</strong>?</p>
+                <p class="text-muted">Это действие нельзя будет отменить.</p>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-danger" name="_method" value="delete">
+                            <i class="bi bi-trash"></i> Удалить
+                        </button>
+                        <a href="{% url 'children:list' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Отмена
+                        </a>
+                        <a href="{% url 'children:detail' child.pk %}" class="btn btn-info">
+                            <i class="bi bi-eye"></i> Просмотреть
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

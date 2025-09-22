@@ -1,0 +1,43 @@
+<!-- templates/accounts/register.html -->
+{% extends 'base.html' %}
+
+{% block title %}Регистрация - Путь к успеху{% endblock %}
+
+{% block page_title %}Регистрация нового пользователя{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-person-plus"></i> Создать пользователя
+                    </button>
+                    <a href="{% url 'admin:accounts_user_changelist' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Назад в админку
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Инструкция</h5>
+            </div>
+            <div class="card-body">
+                <p>Заполните форму для создания нового пользователя системы.</p>
+                <ul>
+                    <li>Выберите подходящую роль пользователя</li>
+                    <li>Убедитесь в корректности введенных данных</li>
+                    <li>Пользователь сможет изменить пароль при первом входе</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,196 @@
+<!-- templates/children/child_detail.html -->
+{% extends 'base.html' %}
+
+{% block title %}{{ child.fio }} - Путь к успеху{% endblock %}
+
+{% block page_title %}Информация о ребенке{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'children:list' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Назад к списку
+    </a>
+    <a href="{% url 'children:update' child.pk %}" class="btn btn-warning">
+        <i class="bi bi-pencil"></i> Редактировать
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Основная информация</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th>ФИО:</th>
+                        <td>{{ child.fio }}</td>
+                    </tr>
+                    <tr>
+                        <th>Дата рождения:</th>
+                        <td>{{ child.date_of_birth|date:"d.m.Y" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Возраст:</th>
+                        <td>{{ child.age }} лет</td>
+                    </tr>
+                    <tr>
+                        <th>Пол:</th>
+                        <td>
+                            {% if child.gender == 'M' %}Мужской{% else %}Женский{% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Дата добавления:</th>
+                        <td>{{ child.created_at|date:"d.m.Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Последнее обновление:</th>
+                        <td>{{ child.updated_at|date:"d.m.Y H:i" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Действия</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'children:update' child.pk %}" class="btn btn-warning">
+                        <i class="bi bi-pencil"></i> Редактировать
+                    </a>
+                    <a href="{% url 'children:delete' child.pk %}" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Удалить
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- templates/children/child_detail.html (добавляем в конец) -->
+<!-- templates/children/child_detail.html (обновляем таблицу участий в конкурсах) -->
+<!-- templates/children/child_detail.html (обновляем таблицу участий) -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-trophy"></i> Участие в конкурсах
+                    {% if participations %}
+                        <span class="badge bg-primary float-end">{{ participations.count }}</span>
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if participations %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Конкурс</th>
+                                    <th>Студия</th>
+                                    <th>Уровень</th>
+                                    <th>Результат</th>
+                                    <th>Дата отчета</th>
+                                    <th>Файлы</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <!-- templates/events/event_detail.html (обновляем секцию действий в таблице участников) -->
+<tbody>
+    {% for participant in participants %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>
+                <strong>{{ participant.child.fio }}</strong>
+            </td>
+            <td>{{ participant.enrollment.studio.name }}</td>
+            <td>{{ participant.enrollment.teacher }}</td>
+            <td>
+                {% if participant.result_type %}
+                    <span class="badge bg-success">{{ participant.result_type.name }}</span>
+                {% elif participant.custom_result %}
+                    <span class="badge bg-warning">{{ participant.custom_result }}</span>
+                {% else %}
+                    <span class="badge bg-secondary">Без результата</span>
+                {% endif %}
+            </td>
+            <td>{{ participant.report_date|date:"d.m.Y" }}</td>
+            <td>
+                <div class="btn-group" role="group">
+                    <!-- Просмотр карточки участия -->
+                    <a href="{% url 'participation:detail' participant.pk %}"
+                       class="btn btn-sm btn-outline-info"
+                       title="Просмотр участия">
+                        <i class="bi bi-eye"></i>
+                    </a>
+
+                    <!-- Иконки просмотра файлов -->
+                    {% with files=participant.uploadedfile_set.all %}
+                        {% if files %}
+                            {% if files.count == 1 %}
+                                <!-- Если один файл - показываем кнопку просмотра -->
+                                <a href="{% url 'participation:view_file' files.first.pk %}"
+                                   class="btn btn-sm btn-outline-primary"
+                                   title="Просмотр файла: {{ files.first.original_name }}"
+                                   target="_blank">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                </a>
+                            {% elif files.count > 1 %}
+                                <!-- Если несколько файлов - показываем кнопку с dropdown -->
+                                <div class="btn-group" role="group">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary dropdown-toggle"
+                                            data-bs-toggle="dropdown"
+                                            aria-expanded="false"
+                                            title="Просмотр файлов ({{ files.count }})">
+                                        <i class="bi bi-file-earmark-text"></i> {{ files.count }}
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        {% for file in files %}
+                                            <li>
+                                                <a class="dropdown-item"
+                                                   href="{% url 'participation:view_file' file.pk %}"
+                                                   target="_blank">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    {{ file.original_name }}
+                                                </a>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <!-- Если нет файлов - показываем неактивную кнопку -->
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    disabled
+                                    title="Нет файлов">
+                                <i class="bi bi-file-earmark-text"></i>
+                            </button>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            </td>
+        </tr>
+    {% endfor %}
+</tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        Ребенок пока не участвовал в конкурсах.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

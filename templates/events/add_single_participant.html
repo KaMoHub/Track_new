@@ -1,0 +1,129 @@
+<!-- templates/events/add_single_participant.html -->
+{% extends 'base.html' %}
+
+{% block title %}Регистрация участия в конкурсе - Путь к успеху{% endblock %}
+
+{% block page_title %}Регистрация участия в конкурсе{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Информация о ребенке -->
+                    <div class="mb-4">
+                        <h5>Ребенок для регистрации</h5>
+                        <div class="alert alert-info">
+                            <strong>{{ enrollment.child.fio }}</strong><br>
+                            Студия: {{ enrollment.studio.name }}<br>
+                            Учебный год: {{ enrollment.academic_year }}
+                            <input type="hidden" name="enrollment" value="{{ enrollment.id }}">
+                        </div>
+                    </div>
+
+                    <!-- Выбор конкурса -->
+                    <div class="mb-3">
+                        <label for="event" class="form-label">Конкурс *</label>
+                        <select name="event" id="event" class="form-select" required>
+                            <option value="">---------</option>
+                            {% for event in events %}
+                                <option value="{{ event.id }}" {% if selected_event == event.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ event.name }} ({{ event.get_level_display }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if not events %}
+                            <div class="alert alert-warning mt-2">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                Нет доступных активных конкурсов. <a href="{% url 'events:create' %}">Создайте конкурс</a>.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Дата отчета -->
+                    <div class="mb-3">
+                        <label for="report_date" class="form-label">Дата отчета *</label>
+                        <input type="date"
+                               class="form-control"
+                               id="report_date"
+                               name="report_date"
+                               value="{{ request.POST.report_date|date:'Y-m-d'|default:'' }}"
+                               required>
+                        <div class="form-text">Формат: ДД.ММ.ГГГГ</div>
+                    </div>
+
+                    <!-- Результат -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="result_type" class="form-label">Тип результата</label>
+                                <select name="result_type" id="result_type" class="form-select">
+                                    <option value="">---------</option>
+                                    {% for result_type in result_types %}
+                                        <option value="{{ result_type.id }}" {% if request.POST.result_type == result_type.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ result_type.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="custom_result" class="form-label">Произвольный результат</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="custom_result"
+                                       name="custom_result"
+                                       value="{{ request.POST.custom_result }}"
+                                       placeholder="Если тип результата не выбран">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Зарегистрировать участие
+                        </button>
+                        <a href="{% url 'children:enrollment_detail' enrollment.pk %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Отмена
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Инструкция</h5>
+            </div>
+            <div class="card-body">
+                <p>Заполните форму для регистрации участия ребенка в конкурсе.</p>
+                <ul>
+                    <li>Выберите конкурс из списка активных</li>
+                    <li>Укажите дату отчета</li>
+                    <li>При необходимости укажите результат</li>
+                </ul>
+                <div class="alert alert-info">
+                    <strong>Текущий ребенок:</strong><br>
+                    {{ enrollment.child.fio }}<br>
+                    Студия: {{ enrollment.studio.name }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

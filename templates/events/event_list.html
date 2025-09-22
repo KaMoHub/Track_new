@@ -1,0 +1,253 @@
+<!-- templates/events/event_list.html (обновляем заголовки таблицы) -->
+{% extends 'base.html' %}
+
+{% block title %}Список конкурсов - Путь к успеху{% endblock %}
+
+{% block page_title %}Список конкурсов{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'events:create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Добавить конкурс
+    </a>
+    {% if user.is_staff or user.is_superuser %}
+        <a href="{% url 'events:upload' %}" class="btn btn-success">
+            <i class="bi bi-file-earmark-excel"></i> Загрузить из Excel
+        </a>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <!-- Фильтры -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="level" class="form-label">Уровень</label>
+                        <select name="level" id="level" class="form-select">
+                            <option value="">Все уровни</option>
+                            {% for level_choice in levels %}
+                                <option value="{{ level_choice.0 }}" {% if current_level == level_choice.0 %}selected{% endif %}>
+                                    {{ level_choice.1 }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="search" class="form-label">Поиск</label>
+                        <input type="text" name="search" id="search" class="form-control"
+                               placeholder="Поиск по названию или описанию" value="{{ current_search }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i> Фильтровать
+                            </button>
+                            <a href="{% url 'events:list' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Сбросить
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                {% if events %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <!-- templates/events/event_list.html (обновляем шапку таблицы) -->
+<thead class="table-primary">
+    <tr>
+        <!-- Сортировка по названию -->
+        <th scope="col" class="align-middle">
+            <a href="?{% if current_level %}level={{ current_level }}&{% endif %}{% if current_search %}search={{ current_search }}&{% endif %}sort=name&order={% if current_sort == 'name' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+               class="text-decoration-none text-dark fw-bold">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Название конкурса</span>
+                    {% if current_sort == 'name' %}
+                        {% if current_order == 'asc' %}
+                            <i class="bi bi-sort-alpha-down text-primary"></i>
+                        {% else %}
+                            <i class="bi bi-sort-alpha-up text-primary"></i>
+                        {% endif %}
+                    {% else %}
+                        <i class="bi bi-arrow-down-up text-muted"></i>
+                    {% endif %}
+                </div>
+            </a>
+        </th>
+
+        <!-- Сортировка по уровню -->
+        <th scope="col" class="align-middle">
+            <a href="?{% if current_level %}level={{ current_level }}&{% endif %}{% if current_search %}search={{ current_search }}&{% endif %}sort=level&order={% if current_sort == 'level' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+               class="text-decoration-none text-dark fw-bold">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Уровень</span>
+                    {% if current_sort == 'level' %}
+                        {% if current_order == 'asc' %}
+                            <i class="bi bi-sort-alpha-down text-primary"></i>
+                        {% else %}
+                            <i class="bi bi-sort-alpha-up text-primary"></i>
+                        {% endif %}
+                    {% else %}
+                        <i class="bi bi-arrow-down-up text-muted"></i>
+                    {% endif %}
+                </div>
+            </a>
+        </th>
+
+        <!-- Сортировка по сроку подачи -->
+        <th scope="col" class="align-middle">
+            <a href="?{% if current_level %}level={{ current_level }}&{% endif %}{% if current_search %}search={{ current_search }}&{% endif %}sort=application_deadline&order={% if current_sort == 'application_deadline' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+               class="text-decoration-none text-dark fw-bold">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Срок подачи</span>
+                    {% if current_sort == 'application_deadline' %}
+                        {% if current_order == 'asc' %}
+                            <i class="bi bi-sort-numeric-down text-primary"></i>
+                        {% else %}
+                            <i class="bi bi-sort-numeric-up text-primary"></i>
+                        {% endif %}
+                    {% else %}
+                        <i class="bi bi-arrow-down-up text-muted"></i>
+                    {% endif %}
+                </div>
+            </a>
+        </th>
+
+        <!-- Сортировка по дате результатов -->
+        <th scope="col" class="align-middle">
+            <a href="?{% if current_level %}level={{ current_level }}&{% endif %}{% if current_search %}search={{ current_search }}&{% endif %}sort=result_date&order={% if current_sort == 'result_date' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+               class="text-decoration-none text-dark fw-bold">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Дата результатов</span>
+                    {% if current_sort == 'result_date' %}
+                        {% if current_order == 'asc' %}
+                            <i class="bi bi-sort-numeric-down text-primary"></i>
+                        {% else %}
+                            <i class="bi bi-sort-numeric-up text-primary"></i>
+                        {% endif %}
+                    {% else %}
+                        <i class="bi bi-arrow-down-up text-muted"></i>
+                    {% endif %}
+                </div>
+            </a>
+        </th>
+
+        <th scope="col" class="text-center">Статус</th>
+        <th scope="col" class="text-center">Участников</th>
+        <th scope="col" class="text-center">Действия</th>
+    </tr>
+</thead>
+                            <tbody>
+                                {% for event in events %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'events:view' event.pk %}"
+                                               class="text-decoration-none"
+                                               title="Просмотр участников конкурса">
+                                                <strong>{{ event.name }}</strong>
+                                            </a>
+                                        </td>
+                                        <td>{{ event.get_level_display }}</td>
+                                        <td>{{ event.application_deadline|date:"d.m.Y"|default:"-" }}</td>
+                                        <td>{{ event.result_date|date:"d.m.Y"|default:"-" }}</td>
+                                        <td>
+                                            {% if event.is_active %}
+                                                <span class="badge bg-success">Активен</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Неактивен</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% comment %}Покажем количество участников{% endcomment %}
+                                            {% with participants_count=event.participation_set.count %}
+                                                <span class="badge bg-info">{{ participants_count }}</span>
+                                            {% endwith %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'events:add_participants' event.pk %}"
+                                                   class="btn btn-sm btn-outline-success"
+                                                   title="Добавить участников">
+                                                    <i class="bi bi-person-plus"></i>
+                                                </a>
+                                                <a href="{% url 'events:detail' event.pk %}"
+                                                   class="btn btn-sm btn-outline-primary"
+                                                   title="Подробности">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <a href="{% url 'events:update' event.pk %}"
+                                                   class="btn btn-sm btn-outline-warning"
+                                                   title="Редактировать">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                <a href="{% url 'events:delete' event.pk %}"
+                                                   class="btn btn-sm btn-outline-danger"
+                                                   title="Удалить">
+                                                    <i class="bi bi-trash"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if is_paginated %}
+                        <nav aria-label="Навигация по страницам">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link"
+                                           href="?{% if current_level %}level={{ current_level }}&{% endif %}{% if current_search %}search={{ current_search }}&{% endif %}{% if current_sort %}sort={{ current_sort }}&{% endif %}{% if current_order %}order={{ current_order }}&{% endif %}page=1">
+                                            Первая
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link"
+                                           href="?{% if current_level %}level={{ current_level }}&{% endif %}{% if current_search %}search={{ current_search }}&{% endif %}{% if current_sort %}sort={{ current_sort }}&{% endif %}{% if current_order %}order={{ current_order }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                                            Предыдущая
+                                        </a>
+                                    </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link">
+                                        Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}
+                                    </span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link"
+                                           href="?{% if current_level %}level={{ current_level }}&{% endif %}{% if current_search %}search={{ current_search }}&{% endif %}{% if current_sort %}sort={{ current_sort }}&{% endif %}{% if current_order %}order={{ current_order }}&{% endif %}page={{ page_obj.next_page_number }}">
+                                            Следующая
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link"
+                                           href="?{% if current_level %}level={{ current_level }}&{% endif %}{% if current_search %}search={{ current_search }}&{% endif %}{% if current_sort %}sort={{ current_sort }}&{% endif %}{% if current_order %}order={{ current_order }}&{% endif %}page={{ page_obj.paginator.num_pages }}">
+                                            Последняя
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        Конкурсы не найдены. <a href="{% url 'events:create' %}">Добавьте первый конкурс</a>.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

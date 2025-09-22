@@ -1,0 +1,68 @@
+<!-- templates/children/enrollment_confirm_delete.html -->
+{% extends 'base.html' %}
+
+{% block title %}Удаление записи из студии - Путь к успеху{% endblock %}
+
+{% block page_title %}Удаление записи из студии{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-exclamation-triangle"></i> Подтверждение удаления
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="lead">Вы действительно хотите удалить запись ребенка <strong>{{ object.child.fio }}</strong> из студии <strong>{{ object.studio.name }}</strong>?</p>
+                <p>Учебный год: <strong>{{ object.academic_year }}</strong></p>
+
+                <!-- Проверяем наличие связанных записей -->
+                {% with related=object.get_related_objects %}
+                    {% if related %}
+                        <div class="alert alert-warning">
+                            <h6><i class="bi bi-info-circle"></i> Внимание!</h6>
+                            <p>Запись имеет следующие связанные данные:</p>
+                            <ul>
+                                {% for key, value in related.items %}
+                                    <li>{{ key }}: {{ value }}</li>
+                                {% endfor %}
+                            </ul>
+                            <p>Сначала необходимо удалить эти записи, чтобы можно было удалить запись в студии.</p>
+                        </div>
+                    {% endif %}
+                {% endwith %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        {% with related=object.get_related_objects %}
+                            {% if related %}
+                                <!-- Если есть связанные записи, показываем только кнопки отмены -->
+                                <a href="{% url 'children:studio_children' %}" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> Назад к списку
+                                </a>
+                                <a href="{% url 'children:enrollment_detail' object.pk %}" class="btn btn-info">
+                                    <i class="bi bi-eye"></i> Просмотреть
+                                </a>
+                            {% else %}
+                                <!-- Если нет связанных записей, показываем кнопку удаления -->
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="bi bi-trash"></i> Удалить запись
+                                </button>
+                                <a href="{% url 'children:studio_children' %}" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> Отмена
+                                </a>
+                                <a href="{% url 'children:enrollment_detail' object.pk %}" class="btn btn-info">
+                                    <i class="bi bi-eye"></i> Просмотреть
+                                </a>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

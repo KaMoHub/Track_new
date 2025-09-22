@@ -1,0 +1,152 @@
+<!-- templates/participation/participation_form.html -->
+{% extends 'base.html' %}
+
+{% block title %}{% if object %}Редактирование{% else %}Регистрация{% endif %} участия - Путь к успеху{% endblock %}
+
+{% block page_title %}{% if object %}Редактирование{% else %}Регистрация{% endif %} участия{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.enrollment.id_for_label }}" class="form-label">Ребенок и студия *</label>
+                        <select name="{{ form.enrollment.html_name }}" id="{{ form.enrollment.id_for_label }}" class="form-select" required>
+                            <option value="">---------</option>
+                            {% for enrollment in form.enrollment.field.queryset %}
+                                <option value="{{ enrollment.id }}"
+                                        {% if form.enrollment.value == enrollment.id|stringformat:"s" or enrollment_id == enrollment.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ enrollment.child.fio }} ({{ enrollment.studio.name }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.enrollment.errors %}
+                            <div class="text-danger">{{ form.enrollment.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">Выберите ребенка и его студию</div>
+
+                        {% if enrollment_info %}
+                            <div class="alert alert-info mt-2">
+                                <i class="bi bi-info-circle"></i>
+                                <strong>Выбрано:</strong> {{ enrollment_info.child_fio }} - {{ enrollment_info.studio_name }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.event.id_for_label }}" class="form-label">Конкурс *</label>
+                        {{ form.event }}
+                        {% if form.event.errors %}
+                            <div class="text-danger">{{ form.event.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.result_type.id_for_label }}" class="form-label">Тип результата</label>
+                                {{ form.result_type }}
+                                {% if form.result_type.errors %}
+                                    <div class="text-danger">{{ form.result_type.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.custom_result.id_for_label }}" class="form-label">Произвольный результат</label>
+                                {{ form.custom_result }}
+                                <div class="form-text">Если тип результата не выбран</div>
+                                {% if form.custom_result.errors %}
+                                    <div class="text-danger">{{ form.custom_result.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.report_date.id_for_label }}" class="form-label">Дата отчета *</label>
+                        <input type="date"
+                               class="form-control"
+                               id="{{ form.report_date.id_for_label }}"
+                               name="{{ form.report_date.html_name }}"
+                               value="{{ form.report_date.value|date:'Y-m-d' }}"
+                               required>
+                        <div class="form-text">Формат: ДД.ММ.ГГГГ (например: 15.03.2024)</div>
+                        {% if form.report_date.errors %}
+                            <div class="text-danger">{{ form.report_date.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Поле для загрузки файла -->
+                    <div class="mb-3">
+                        <label for="file_upload" class="form-label">Прикрепить файл</label>
+                        <input type="file"
+                               class="form-control"
+                               id="file_upload"
+                               name="file_upload"
+                               accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.doc,.docx,.xls,.xlsx">
+                        <div class="form-text">Поддерживаются PDF, изображения и документы</div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> {% if object %}Сохранить{% else %}Зарегистрировать{% endif %}
+                        </button>
+                        <a href="{% url 'participation:list' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Отмена
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Инструкция</h5>
+            </div>
+            <div class="card-body">
+                <p>{% if object %}Отредактируйте{% else %}Заполните{% endif %} форму для {% if object %}редактирования{% else %}регистрации{% endif %} участия.</p>
+                <ul>
+                    <li>Поля, отмеченные *, обязательны для заполнения</li>
+                    <li>Выберите тип результата ИЛИ введите произвольный результат</li>
+                    <li>Дата отчета указывает, когда было зафиксировано участие</li>
+                    <li>Один ребенок не может участвовать в одном конкурсе дважды</li>
+                    <li>Можно прикрепить один файл (PDF, изображения, документы)</li>
+                </ul>
+                {% if object %}
+                <div class="alert alert-info">
+                    <strong>Текущее участие:</strong><br>
+                    Ребенок: {{ object.child.fio }}<br>
+                    Студия: {{ object.enrollment.studio.name }}<br>
+                    Конкурс: {{ object.event.name }}<br>
+                    Дата отчета: {{ object.report_date|date:"d.m.Y" }}
+                </div>
+                {% endif %}
+
+                {% if enrollment_info %}
+                <div class="alert alert-success">
+                    <strong>Автоматически выбрано:</strong><br>
+                    Ребенок: {{ enrollment_info.child_fio }}<br>
+                    Студия: {{ enrollment_info.studio_name }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

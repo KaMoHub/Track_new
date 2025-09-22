@@ -1,0 +1,45 @@
+<!-- templates/accounts/profile.html -->
+{% extends 'base.html' %}
+
+{% block title %}Профиль - Путь к успеху{% endblock %}
+
+{% block page_title %}Профиль пользователя{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Настройки профиля</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Сохранить изменения
+                    </button>
+                    <a href="{% url 'dashboard:home' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Назад
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Информация о пользователе</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Имя пользователя:</strong> {{ user.username }}</p>
+                <p><strong>Полное имя:</strong> {{ user.get_full_name|default:"Не указано" }}</p>
+                <p><strong>Email:</strong> {{ user.email|default:"Не указан" }}</p>
+                <p><strong>Роль:</strong> {{ user.user_profile.get_role_display }}</p>
+                <p><strong>Учебный год:</strong> {{ user.user_profile.academic_year }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

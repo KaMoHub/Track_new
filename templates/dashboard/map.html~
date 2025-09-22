@@ -1,0 +1,48 @@
+<!-- templates/dashboard/map.html -->
+{% extends 'base.html' %}
+
+{% block title %}Карта маршрута - Путь к успеху{% endblock %}
+
+{% block page_title %}Карта маршрута{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Визуализация достижений обучающихся</h5>
+            </div>
+            <div class="card-body">
+                <p>Здесь будет отображаться карта маршрута с достижениями детей.</p>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    Карта маршрута показывает участие детей в конкурсах и их достижения по различным направлениям.
+                </div>
+
+                <!-- Пример визуализации -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <i class="bi bi-graph-up" style="font-size: 3rem; color: #007bff;"></i>
+                                <h5 class="card-title mt-3">Статистика по уровням</h5>
+                                <p class="card-text">График распределения достижений по уровням конкурсов</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <i class="bi bi-calendar-check" style="font-size: 3rem; color: #28a745;"></i>
+                                <h5 class="card-title mt-3">Динамика участия</h5>
+                                <p class="card-text">График участия детей по месяцам</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

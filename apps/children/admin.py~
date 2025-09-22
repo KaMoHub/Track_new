@@ -1,0 +1,48 @@
+# apps/children/admin.py
+from django.contrib import admin
+from .models import Child, Direction, Studio, Teacher, StudioEnrollment, ChildList
+
+@admin.register(Child)
+class ChildAdmin(admin.ModelAdmin):
+    list_display = ('fio', 'date_of_birth', 'age', 'gender', 'created_at')
+    list_filter = ('gender', 'created_at')
+    search_fields = ('fio',)
+    ordering = ('fio',)
+
+@admin.register(Direction)
+class DirectionAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+    prepopulated_fields = {'name': ('name',)}
+
+@admin.register(Studio)
+class StudioAdmin(admin.ModelAdmin):
+    list_display = ('name', 'direction')
+    list_filter = ('direction',)
+    search_fields = ('name', 'direction__name')
+    ordering = ('direction', 'name')
+
+@admin.register(Teacher)
+class TeacherAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'user')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name')
+
+@admin.register(StudioEnrollment)
+class StudioEnrollmentAdmin(admin.ModelAdmin):
+    list_display = ('child', 'studio', 'teacher', 'academic_year', 'enrollment_date')
+    list_filter = ('studio__direction', 'studio', 'teacher', 'academic_year')
+    search_fields = ('child__fio', 'studio__name')
+    ordering = ('-enrollment_date',)
+
+@admin.register(ChildList)
+class ChildListAdmin(admin.ModelAdmin):
+    list_display = ('child',)
+    search_fields = ('child__fio',)
+
+
+# apps/children/admin.py (добавляем в конец)
+@admin.register(TeacherStudioAccess)
+class TeacherStudioAccessAdmin(admin.ModelAdmin):
+    list_display = ('teacher', 'studio', 'granted_by', 'granted_at')
+    list_filter = ('studio__direction', 'studio', 'granted_at')
+    search_fields = ('teacher__user__username', 'teacher__user__first_name', 'studio__name')

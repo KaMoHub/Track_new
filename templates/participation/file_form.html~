@@ -1,0 +1,103 @@
+<!-- templates/participation/file_form.html (обновляем форму) -->
+{% extends 'base.html' %}
+
+{% block title %}Загрузка файла - Путь к успеху{% endblock %}
+
+{% block page_title %}Загрузка файла{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Скрытое поле участия -->
+                    {% if participation %}
+                        <input type="hidden" name="participation" value="{{ participation.id }}">
+                    {% endif %}
+
+                    <!-- Информация об участии (только для просмотра) -->
+                    {% if participation_info %}
+                        <div class="mb-3">
+                            <label class="form-label">Участие в конкурсе</label>
+                            <div class="form-control-plaintext">
+                                <strong>{{ participation_info.child_fio }}</strong> -
+                                <em>{{ participation_info.event_name }}</em>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="mb-3">
+                            <label class="form-label">Участие в конкурсе</label>
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                Участие не выбрано. Пожалуйста, вернитесь назад и выберите участие.
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Поле загрузки файла -->
+                    <div class="mb-3">
+                        <label for="file_upload" class="form-label">Файл *</label>
+                        <input type="file"
+                               class="form-control"
+                               id="file_upload"
+                               name="file_upload"
+                               accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.doc,.docx,.xls,.xlsx"
+                               required>
+                        <div class="form-text">
+                            Поддерживаются PDF, изображения (JPG, PNG, GIF, BMP, WebP) и документы (DOC, DOCX, XLS, XLSX)
+                        </div>
+                        {% if form.file_upload.errors %}
+                            <div class="text-danger">{{ form.file_upload.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> Загрузить файл
+                        </button>
+                        <a href="{% if participation %}{% url 'participation:detail' participation.id %}{% else %}{% url 'participation:list' %}{% endif %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Отмена
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Инструкция</h5>
+            </div>
+            <div class="card-body">
+                <p>Загрузите файл для прикрепления к участию в конкурсе.</p>
+                <ul>
+                    <li>Поле "Файл" обязательно для заполнения</li>
+                    <li>Поддерживаются различные форматы файлов</li>
+                    <li>Максимальный размер файла: 10 МБ</li>
+                    <li>Один файл можно прикрепить к одному участию</li>
+                </ul>
+                {% if participation_info %}
+                <div class="alert alert-info">
+                    <strong>Информация об участии:</strong><br>
+                    Ребенок: {{ participation_info.child_fio }}<br>
+                    Конкурс: {{ participation_info.event_name }}<br>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

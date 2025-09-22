@@ -1,0 +1,165 @@
+<!-- templates/dashboard/home.html -->
+{% extends 'base.html' %}
+
+{% block title %}Главная - Путь к успеху{% endblock %}
+
+{% block page_title %}Добро пожаловать в систему "Путь к успеху"{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Система учета участия обучающихся в конкурсах</h5>
+                <p class="card-text">
+                    Добро пожаловать в систему "Путь к успеху"!
+                    Данная система предназначена для учета участия обучающихся
+                    Центра дополнительного образования в различных конкурсах и мероприятиях.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <!-- Первый ряд -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-people" style="font-size: 3rem; color: #007bff;"></i>
+                <h5 class="card-title mt-3">Все дети</h5>
+                <p class="card-text">Полный список обучающихся центра.</p>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'children:list' %}" class="btn btn-primary">Перейти</a>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="btn btn-primary">Войти для доступа</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-mortarboard" style="font-size: 3rem; color: #28a745;"></i>
+                <h5 class="card-title mt-3">Дети в студиях</h5>
+                <p class="card-text">Список детей с фильтрацией по студиям.</p>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'children:studio_children' %}" class="btn btn-success">Перейти</a>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="btn btn-success">Войти для доступа</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-trophy" style="font-size: 3rem; color: #ffc107;"></i>
+                <h5 class="card-title mt-3">Конкурсы</h5>
+                <p class="card-text">Справочник конкурсов и мероприятий.</p>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'events:list' %}" class="btn btn-warning">Перейти</a>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="btn btn-warning">Войти для доступа</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <!-- Второй ряд -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-award" style="font-size: 3rem; color: #fd7e14;"></i>
+                <h5 class="card-title mt-3">Участия</h5>
+                <p class="card-text">Участие детей в конкурсах и мероприятиях.</p>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'participation:list' %}" class="btn btn-danger">Перейти</a>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="btn btn-orange">Войти для доступа</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-bar-chart" style="font-size: 3rem; color: #6f42c1;"></i>
+                <h5 class="card-title mt-3">Отчеты</h5>
+                <p class="card-text">Генерация отчетов и аналитика.</p>
+                {% if user.is_authenticated %}
+                    <a href="">Перейти</a>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="btn btn-info">Войти для доступа</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-person-circle" style="font-size: 3rem; color: #17a2b8;"></i>
+                <h5 class="card-title mt-3">Профиль</h5>
+                <p class="card-text">Управление вашим профилем и настройками.</p>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'accounts:profile' %}" class="btn btn-info">Перейти</a>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="btn btn-info">Войти для доступа</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if user.is_authenticated %}
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Быстрые действия</h5>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'children:create' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-person-plus"></i> Добавить ребенка
+                    </a>
+                    <a href="{% url 'events:create' %}" class="btn btn-outline-warning">
+                        <i class="bi bi-calendar-plus"></i> Добавить конкурс
+                    </a>
+                    <a href="{% url 'participation:create' %}" class="btn btn-outline-orange">
+                        <i class="bi bi-award"></i> Зарегистрировать участие
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+<style>
+.btn-orange {
+    background-color: #fd7e14;
+    border-color: #fd7e14;
+    color: white;
+}
+.btn-orange:hover {
+    background-color: #e06b0d;
+    border-color: #d3640c;
+    color: white;
+}
+.btn-purple {
+    background-color: #6f42c1;
+    border-color: #6f42c1;
+    color: white;
+}
+.btn-purple:hover {
+    background-color: #5a32a3;
+    border-color: #522e92;
+    color: white;
+}
+</style>

@@ -1,0 +1,118 @@
+<!-- templates/children/upload_form.html -->
+{% extends 'base.html' %}
+
+{% block title %}Загрузка детей из Excel - Путь к успеху{% endblock %}
+
+{% block page_title %}Загрузка детей из Excel{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'children:studio_children' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Назад к списку
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="excel_file" class="form-label">Excel файл *</label>
+                        <input type="file"
+                               class="form-control"
+                               id="excel_file"
+                               name="excel_file"
+                               accept=".xlsx,.xls"
+                               required>
+                        <div class="form-text">
+                            Поддерживаются форматы Excel: .xlsx и .xls
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h6><i class="bi bi-info-circle"></i> Инструкция по загрузке</h6>
+                        <p>Файл должен содержать следующие колонки:</p>
+                        <ul>
+                            <li><strong>FIO</strong> - Фамилия Имя Отчество ребенка *</li>
+                            <li><strong>BD</strong> - Дата рождения (формат: ДД.ММ.ГГГГ)</li>
+                            <li><strong>Pol</strong> - Пол (М/Ж)</li>
+                            <li><strong>Direction</strong> - Направление *</li>
+                            <li><strong>Studio</strong> - Студия *</li>
+                        </ul>
+                        <p>Поля, отмеченные *, обязательны для заполнения.</p>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> Загрузить данные
+                        </button>
+                        <a href="{% url 'children:studio_children' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Отмена
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Пример структуры Excel файла</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped table-sm">
+                    <thead>
+                        <tr>
+                            <th>FIO</th>
+                            <th>BD</th>
+                            <th>Pol</th>
+                            <th>Direction</th>
+                            <th>Studio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Иванов Иван Иванович</td>
+                            <td>15.03.2015</td>
+                            <td>М</td>
+                            <td>Техническое</td>
+                            <td>Программирование на Python</td>
+                        </tr>
+                        <tr>
+                            <td>Петрова Мария Сергеевна</td>
+                            <td>22.07.2016</td>
+                            <td>Ж</td>
+                            <td>Художественное</td>
+                            <td>Графический дизайн</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-warning">
+                    <h6><i class="bi bi-exclamation-triangle"></i> Важно</h6>
+                    <ul>
+                        <li>Даты указываются в формате ДД.ММ.ГГГГ</li>
+                        <li>Пол указывается как М (мужской) или Ж (женский)</li>
+                        <li>Существующие дети будут обновлены</li>
+                        <li>Новые дети будут созданы</li>
+                        <li>Направления и студии создаются автоматически</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

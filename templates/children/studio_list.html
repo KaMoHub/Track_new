@@ -1,0 +1,63 @@
+<!-- templates/children/studio_list.html -->
+{% extends 'base.html' %}
+
+{% block title %}Студии - Путь к успеху{% endblock %}
+
+{% block page_title %}Студии{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'children:studio_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Добавить студию
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                {% if studios %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Название студии</th>
+                                    <th>Направление</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for studio in studios %}
+                                    <tr>
+                                        <td>{{ studio.name }}</td>
+                                        <td>{{ studio.direction.name }}</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'children:studio_update' studio.pk %}"
+                                                   class="btn btn-sm btn-outline-warning"
+                                                   title="Редактировать">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                <a href="{% url 'children:studio_delete' studio.pk %}"
+                                                   class="btn btn-sm btn-outline-danger"
+                                                   title="Удалить">
+                                                    <i class="bi bi-trash"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        Студии не найдены. <a href="{% url 'children:studio_create' %}">Добавьте первую студию</a>.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

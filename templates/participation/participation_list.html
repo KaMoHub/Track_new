@@ -1,0 +1,222 @@
+<!-- templates/participation/participation_list.html -->
+{% extends 'base.html' %}
+
+{% block title %}Участия в конкурсах - Путь к успеху{% endblock %}
+
+{% block page_title %}Участия в конкурсах{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'participation:create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Зарегистрировать участие
+    </a>
+{% endblock %}
+
+{% block content %}
+<!-- templates/participation/participation_list.html (обновляем фильтры) -->
+<div class="row">
+    <div class="col-md-12">
+        <!-- Фильтры -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="child" class="form-label">Ребенок</label>
+                        <select name="child" id="child" class="form-select">
+                            <option value="">Все дети</option>
+                            {% for child in children %}
+                                <option value="{{ child.id }}" {% if current_child == child.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ child.fio }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="event" class="form-label">Конкурс</label>
+                        <select name="event" id="event" class="form-select">
+                            <option value="">Все конкурсы</option>
+                            {% for event in events %}
+                                <option value="{{ event.id }}" {% if current_event == event.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ event.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="result_type" class="form-label">Результат</label>
+                        <select name="result_type" id="result_type" class="form-select">
+                            <option value="">Все результаты</option>
+                            {% for result_type in result_types %}
+                                <option value="{{ result_type.id }}" {% if current_result_type == result_type.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ result_type.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="search" class="form-label">Поиск</label>
+                        <input type="text" name="search" id="search" class="form-control"
+                               placeholder="Поиск..." value="{{ current_search }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i> Фильтровать
+                            </button>
+                            <a href="{% url 'participation:list' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Сбросить
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Список участий -->
+        <div class="card">
+            <div class="card-body">
+                {% if participations %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Ребенок (Студия)</th>
+                                    <th>Конкурс</th>
+                                    <th>Результат</th>
+                                    <th>Дата отчета</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for participation in participations %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ participation.child.fio }}</strong><br>
+                                            <small class="text-muted">{{ participation.enrollment.studio.name }}</small>
+                                        </td>
+                                        <td>{{ participation.event.name }}</td>
+                                        <td>
+                                            {% if participation.result_type %}
+                                                <span class="badge bg-success">{{ participation.result_type.name }}</span>
+                                            {% elif participation.custom_result %}
+                                                <span class="badge bg-info">{{ participation.custom_result }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Без результата</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ participation.report_date|date:"d.m.Y" }}</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'participation:detail' participation.pk %}"
+                                                   class="btn btn-sm btn-outline-info"
+                                                   title="Просмотр">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+
+                                                <!-- Просмотр файлов -->
+<!--                                                {% with files_count=participation.uploadedfile_set.count %}-->
+<!--                                                    {% if files_count > 0 %}-->
+<!--                                                        <a href="{% url 'participation:detail' participation.pk %}#files"-->
+<!--                                                           class="btn btn-sm btn-outline-primary"-->
+<!--                                                           title="Файлы ({{ files_count }})">-->
+<!--                                                            <i class="bi bi-files"></i> {{ files_count }}-->
+<!--                                                        </a>-->
+<!--                                                    {% endif %}-->
+<!--                                                {% endwith %}-->
+                                                <!-- Иконки просмотра файлов -->
+                                                {% with files=participation.uploadedfile_set.all %}
+                                                    {% if files %}
+                                                        {% if files.count == 1 %}
+                                                            <!-- Если один файл - показываем кнопку просмотра -->
+                                                            <a href="{% url 'participation:view_file' files.first.pk %}"
+                                                               class="btn btn-sm btn-outline-primary"
+                                                               title="Просмотр файла: {{ files.first.original_name }}"
+                                                               target="_blank">
+                                                                <i class="bi bi-file-earmark-text"></i>
+                                                            </a>
+                                                        {% elif files.count > 1 %}
+                                                            <!-- Если несколько файлов - показываем dropdown меню -->
+                                                            <div class="btn-group" role="group">
+                                                                <button type="button"
+                                                                        class="btn btn-sm btn-outline-primary dropdown-toggle"
+                                                                        data-bs-toggle="dropdown"
+                                                                        aria-expanded="false"
+                                                                        title="Просмотр файлов ({{ files.count }})">
+                                                                    <i class="bi bi-file-earmark-text"></i> {{ files.count }}
+                                                                </button>
+                                                                <ul class="dropdown-menu">
+                                                                    {% for file in files %}
+                                                                        <li>
+                                                                            <a class="dropdown-item"
+                                                                               href="{% url 'participation:view_file' file.pk %}"
+                                                                               target="_blank">
+                                                                                <i class="bi bi-file-earmark-text"></i>
+                                                                                {{ file.original_name }}
+                                                                            </a>
+                                                                        </li>
+                                                                    {% endfor %}
+                                                                </ul>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <!-- Если нет файлов - показываем неактивную кнопку -->
+                                                        <button class="btn btn-sm btn-outline-secondary"
+                                                                disabled
+                                                                title="Нет файлов">
+                                                            <i class="bi bi-file-earmark-text"></i>
+                                                        </button>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if is_paginated %}
+                        <nav aria-label="Навигация по страницам">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?child={{ current_child }}&event={{ current_event }}&result_type={{ current_result_type }}&search={{ current_search }}&page=1">Первая</a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?child={{ current_child }}&event={{ current_event }}&result_type={{ current_result_type }}&search={{ current_search }}&page={{ page_obj.previous_page_number }}">Предыдущая</a>
+                                    </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link">
+                                        Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}
+                                    </span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?child={{ current_child }}&event={{ current_event }}&result_type={{ current_result_type }}&search={{ current_search }}&page={{ page_obj.next_page_number }}">Следующая</a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?child={{ current_child }}&event={{ current_event }}&result_type={{ current_result_type }}&search={{ current_search }}&page={{ page_obj.paginator.num_pages }}">Последняя</a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        Участия не найдены.
+                        {% if not children and not studios %}
+                            У вас нет доступа к записям детей в студиях.
+                        {% else %}
+                            <a href="{% url 'participation:create' %}">Зарегистрируйте первое участие</a>.
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

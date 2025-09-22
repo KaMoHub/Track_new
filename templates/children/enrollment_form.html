@@ -1,0 +1,112 @@
+<!-- templates/children/enrollment_form.html -->
+{% extends 'base.html' %}
+
+{% block title %}{% if object %}Редактирование{% else %}Добавление{% endif %} записи в студию - Путь к успеху{% endblock %}
+
+{% block page_title %}{% if object %}Редактирование{% else %}Добавление{% endif %} записи в студию{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'children:studio_children' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Назад к списку
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.child.id_for_label }}" class="form-label">Ребенок *</label>
+                        {{ form.child }}
+                        {% if form.child.errors %}
+                            <div class="text-danger">{{ form.child.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.studio.id_for_label }}" class="form-label">Студия *</label>
+                        {{ form.studio }}
+                        {% if form.studio.errors %}
+                            <div class="text-danger">{{ form.studio.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.teacher.id_for_label }}" class="form-label">Педагог *</label>
+                        {{ form.teacher }}
+                        {% if form.teacher.errors %}
+                            <div class="text-danger">{{ form.teacher.errors }}</div>
+                        {% endif %}
+                        {% if user.role == 'teacher' %}
+                            <div class="form-text">Педагог установлен автоматически. Изменить можно только методисту или администратору.</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.academic_year.id_for_label }}" class="form-label">Учебный год *</label>
+                        {{ form.academic_year }}
+                        <div class="form-text">Формат: ГГГГ-ГГГГ (например: 2024-2025)</div>
+                        {% if form.academic_year.errors %}
+                            <div class="text-danger">{{ form.academic_year.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> {% if object %}Сохранить{% else %}Добавить{% endif %}
+                        </button>
+                        <a href="{% url 'children:studio_children' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Отмена
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Инструкция</h5>
+            </div>
+            <div class="card-body">
+                <p>{% if object %}Отредактируйте{% else %}Заполните{% endif %} форму для {% if object %}редактирования{% else %}добавления{% endif %} записи в студию.</p>
+                <ul>
+                    <li>Все поля, отмеченные *, обязательны для заполнения</li>
+                    <li>Учебный год указывается в формате 2024-2025</li>
+                    <li>Направление устанавливается автоматически</li>
+                    <li>Один ребенок не может быть добавлен дважды в одну студию в один учебный год</li>
+                </ul>
+                {% if object %}
+                    <div class="alert alert-info">
+                        <strong>Текущая запись:</strong><br>
+                        Ребенок: {{ object.child.fio }}<br>
+                        Студия: {{ object.studio.name }}<br>
+                        Педагог: {{ object.teacher }}<br>
+                        Учебный год: {{ object.academic_year }}
+                    </div>
+                {% endif %}
+                <div class="alert alert-info">
+                    <strong>Пример формата учебного года:</strong><br>
+                    2024-2025<br>
+                    2025-2026<br>
+                    2023-2024
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,105 @@
+<!-- templates/children/child_list.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Список детей - Путь к успеху{% endblock %}
+
+{% block page_title %}Список детей{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'children:create' %}" class="btn btn-primary">
+        <i class="bi bi-person-plus"></i> Добавить ребенка
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                {% if children %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ФИО</th>
+                                    <th>Дата рождения</th>
+                                    <th>Возраст</th>
+                                    <th>Пол</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for child in children %}
+                                    <tr>
+                                        <td>{{ child.fio }}</td>
+                                        <td>{{ child.date_of_birth|date:"d.m.Y" }}</td>
+                                        <td>{{ child.age }} лет</td>
+                                        <td>
+                                            {% if child.gender == 'M' %}Мужской{% else %}Женский{% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'children:detail' child.pk %}"
+                                                   class="btn btn-sm btn-outline-info"
+                                                   title="Просмотр">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <a href="{% url 'children:update' child.pk %}"
+                                                   class="btn btn-sm btn-outline-warning"
+                                                   title="Редактировать">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                <a href="{% url 'children:delete' child.pk %}"
+                                                   class="btn btn-sm btn-outline-danger"
+                                                   title="Удалить">
+                                                    <i class="bi bi-trash"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if is_paginated %}
+                        <nav aria-label="Навигация по страницам">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page=1">Первая</a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Предыдущая</a>
+                                    </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link">
+                                        Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}
+                                    </span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Следующая</a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Последняя</a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        Список детей пуст. <a href="{% url 'children:create' %}">Добавьте первого ребенка</a>.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,38 @@
+# apps/accounts/apps.py
+from django.apps import AppConfig
+
+
+class AccountsConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'apps.accounts'
+    verbose_name = 'Управление пользователями'
+
+    def ready(self):
+        try:
+            import apps.accounts.signals
+        except ImportError:
+            pass
+
+
+from django.apps import AppConfig
+from django.db.models.signals import post_migrate
+from django.contrib.auth import get_user_model
+import os
+
+
+def create_superuser(sender, **kwargs):
+    User = get_user_model()
+    username = os.environ.get('DJANGO_SUPERUSER_USERNAME', 'admin')
+    email = os.environ.get('DJANGO_SUPERUSER_EMAIL', 'admin@example.com')
+    password = os.environ.get('DJANGO_SUPERUSER_PASSWORD', 'admin')
+
+    if not User.objects.filter(username=username).exists():
+        User.objects.create_superuser(username, email, password)
+
+
+class MyAppConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'myapp'
+
+    def ready(self):
+        post_migrate.connect(create_superuser, sender=self)

@@ -1,0 +1,23 @@
+# apps/events/urls.py
+from django.urls import path
+from . import views
+
+app_name = 'events'
+
+urlpatterns = [
+    path('', views.EventListView.as_view(), name='list'),
+    path('create/', views.EventCreateView.as_view(), name='create'),
+    path('<int:pk>/', views.EventDetailView.as_view(), name='detail'),
+    path('<int:pk>/view/', views.EventParticipantsView.as_view(), name='view'),
+    path('<int:pk>/update/', views.EventUpdateView.as_view(), name='update'),
+    path('<int:pk>/delete/', views.EventDeleteView.as_view(), name='delete'),
+    path('<int:pk>/add-participants/', views.AddParticipantsView.as_view(), name='add_participants'),
+    path('add-participant/', views.AddSingleParticipantView.as_view(), name='add_single_participant'),
+
+    # URLs для типов результатов
+    path('result-types/', views.ResultTypeListView.as_view(), name='result_type_list'),
+    path('result-types/create/', views.ResultTypeCreateView.as_view(), name='result_type_create'),
+    path('result-types/<int:pk>/', views.ResultTypeDetailView.as_view(), name='result_type_detail'),
+    path('result-types/<int:pk>/update/', views.ResultTypeUpdateView.as_view(), name='result_type_update'),
+    path('result-types/<int:pk>/delete/', views.ResultTypeDeleteView.as_view(), name='result_type_delete'),
+]

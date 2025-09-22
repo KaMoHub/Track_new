@@ -1,0 +1,139 @@
+<!-- templates/participation/column_mapping_form.html -->
+{% extends 'base.html' %}
+
+{% block title %}Сопоставление колонок - Путь к успеху{% endblock %}
+
+{% block page_title %}Сопоставление колонок Excel файла{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'participation:upload' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Назад к загрузке
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-file-earmark-spreadsheet"></i> Сопоставление колонок
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'participation:process_upload' %}">
+                    {% csrf_token %}
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="alert alert-info">
+                        <h6><i class="bi bi-info-circle"></i> Информация о файле</h6>
+                        <p>Загружен файл: <strong>{{ filename }}</strong></p>
+                        <p>Ниже представлены колонки из вашего Excel файла. Пожалуйста, сопоставьте их с полями модели конкурса.</p>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Поле модели конкурса</th>
+                                    <th>Описание поля</th>
+                                    <th>Колонка из Excel</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Название конкурса *</strong></td>
+                                    <td>Основное название конкурса</td>
+                                    <td>
+                                        <select name="field_name" class="form-select" required>
+                                            <option value="">---------</option>
+                                            {% for col_index, col_name in column_mapping.items %}
+                                                <option value="{{ col_index }}">{{ col_index }}: {{ col_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Описание конкурса</td>
+                                    <td>Подробное описание конкурса</td>
+                                    <td>
+                                        <select name="field_description" class="form-select">
+                                            <option value="">---------</option>
+                                            {% for col_index, col_name in column_mapping.items %}
+                                                <option value="{{ col_index }}">{{ col_index }}: {{ col_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Уровень конкурса *</strong></td>
+                                    <td>Уровень конкурса (Центровский, Городской и т.д.)</td>
+                                    <td>
+                                        <select name="field_level" class="form-select" required>
+                                            <option value="">---------</option>
+                                            {% for col_index, col_name in column_mapping.items %}
+                                                <option value="{{ col_index }}">{{ col_index }}: {{ col_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Срок подачи заявок</td>
+                                    <td>Дата окончания приема заявок</td>
+                                    <td>
+                                        <select name="field_application_deadline" class="form-select">
+                                            <option value="">---------</option>
+                                            {% for col_index, col_name in column_mapping.items %}
+                                                <option value="{{ col_index }}">{{ col_index }}: {{ col_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Дата объявления результатов</td>
+                                    <td>Дата публикации результатов конкурса</td>
+                                    <td>
+                                        <select name="field_result_date" class="form-select">
+                                            <option value="">---------</option>
+                                            {% for col_index, col_name in column_mapping.items %}
+                                                <option value="{{ col_index }}">{{ col_index }}: {{ col_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <h6><i class="bi bi-exclamation-triangle"></i> Важно</h6>
+                        <ul>
+                            <li>Поля, отмеченные *, обязательны для заполнения</li>
+                            <li>Если описание конкурса не указано, будет скопировано из названия</li>
+                            <li>Поддерживаются форматы дат: ДД.ММ.ГГГГ, ДД/ММ/ГГГГ, ГГГГ-ММ-ДД</li>
+                            <li>Уровни: Центровский, Городской, Районный, Республиканский, Региональный, Межрегиональный, Всероссийский, Международный</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Подтвердить сопоставление и загрузить
+                        </button>
+                        <a href="{% url 'participation:upload' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Отмена
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

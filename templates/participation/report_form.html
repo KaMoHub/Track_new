@@ -1,0 +1,118 @@
+<!-- templates/participation/report_form.html -->
+{% extends 'base.html' %}
+
+{% block title %}Отчет по участию детей в конкурсах - Путь к успеху{% endblock %}
+
+{% block page_title %}Отчет по участию детей в конкурсах{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'participation:list' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Назад к списку
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="directions" class="form-label">Направления *</label>
+                        <select name="directions" id="directions" class="form-select" multiple size="5" required>
+                            {% for direction in directions %}
+                                <option value="{{ direction.id }}">{{ direction.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Удерживайте Ctrl для выбора нескольких направлений</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="start_date" class="form-label">Начальная дата</label>
+                                <input type="date"
+                                       class="form-control"
+                                       id="start_date"
+                                       name="start_date"
+                                       value="2025-09-01">
+                                <div class="form-text">По умолчанию: 01.09.2025</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="end_date" class="form-label">Конечная дата</label>
+                                <input type="date"
+                                       class="form-control"
+                                       id="end_date"
+                                       name="end_date"
+                                       value="2026-05-31">
+                                <div class="form-text">По умолчанию: 31.05.2026</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h6><i class="bi bi-info-circle"></i> Информация</h6>
+                        <ul>
+                            <li>Отчет будет сгенерирован в формате Excel (.xlsx)</li>
+                            <li>Данные группируются по направлениям и педагогам</li>
+                            <li>По каждому месяцу показываются уровни конкурсов: Центровский, Городской, Республиканский и т.д.</li>
+                            <li>Период по умолчанию: сентябрь 2025 - май 2026</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-file-earmark-excel"></i> Сгенерировать отчет
+                        </button>
+                        <a href="{% url 'participation:list' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Отмена
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Пример структуры отчета</h5>
+            </div>
+            <div class="card-body">
+                <p>Отчет будет содержать следующие колонки:</p>
+                <ul>
+                    <li><strong>Направление</strong></li>
+                    <li><strong>ФИО педагога</strong></li>
+                    <li><strong>Сентябрь 2025</strong> (подколонки по уровням)</li>
+                    <li><strong>Октябрь 2025</strong> (подколонки по уровням)</li>
+                    <li>...</li>
+                    <li><strong>Май 2026</strong> (подколонки по уровням)</li>
+                    <li><strong>Итого</strong></li>
+                </ul>
+
+                <div class="alert alert-warning">
+                    <h6><i class="bi bi-exclamation-triangle"></i> Важно</h6>
+                    <ul>
+                        <li>Отчет генерируется только по выбранным направлениям</li>
+                        <li>Для педагогов доступны только их направления</li>
+                        <li>Методисты и администраторы видят все направления</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

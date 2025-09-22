@@ -1,0 +1,310 @@
+<!-- templates/children/studio_children_list.html (без колонки учебного года) -->
+{% extends 'base.html' %}
+
+{% block title %}Дети в студиях - Путь к успеху{% endblock %}
+
+{% block page_title %}<small>Дети в студиях</small>{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'children:enrollment_create' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-person-plus"></i> Добавить ребенка
+    </a>
+    <a href="{% url 'children:upload' %}" class="btn btn-success btn-sm">
+        <i class="bi bi-file-earmark-excel"></i> Загрузить Excel
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <!-- Компактная статистика и фильтры -->
+        <div class="row mb-2">
+            <!-- Статистика -->
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-header py-1 bg-primary text-white">
+                        <h6 class="card-title mb-0 small">
+                            <i class="bi bi-bar-chart"></i> Статистика
+                        </h6>
+                    </div>
+                    <div class="card-body py-2">
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <i class="bi bi-people" style="font-size: 1.2rem; color: #007bff;"></i>
+                                    <p class="mb-0 small">
+                                        <strong class="fs-6">{{ unique_children_count }}</strong><br>
+                                        <small>Уникальных детей</small>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <i class="bi bi-mortarboard" style="font-size: 1.2rem; color: #28a745;"></i>
+                                    <p class="mb-0 small">
+                                        <strong class="fs-6">{{ total_enrollments }}</strong><br>
+                                        <small>Записей в студии</small>
+                                        {% if current_studios or current_search %}
+                                            <br><small class="text-muted">(отфильтровано)</small>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Фильтры -->
+            <div class="col-md-8">
+                <div class="card h-100">
+                    <div class="card-header py-1">
+                        <h6 class="card-title mb-0 small">
+                            <i class="bi bi-funnel"></i> Фильтры
+                        </h6>
+                    </div>
+                    <div class="card-body py-2">
+                        <form method="get" class="row g-1">
+                            <div class="col-md-5">
+                                <select name="studios" id="studios" class="form-select form-select-sm" multiple size="4">
+                                    {% for studio in studios %}
+                                        <option value="{{ studio.id }}"
+                                                {% if studio.id|stringformat:"s" in current_studios %}selected{% endif %}>
+                                            {{ studio.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Ctrl для выбора нескольких</small>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" name="search" id="search" class="form-control form-control-sm"
+                                       placeholder="Поиск..." value="{{ current_search }}">
+                            </div>
+                            <div class="col-md-3">
+                                <button type="submit" class="btn btn-primary btn-sm w-100 mb-1">
+                                    <i class="bi bi-search"></i> Применить
+                                </button>
+                                <a href="{% url 'children:studio_children' %}" class="btn btn-secondary btn-sm w-100">
+                                    <i class="bi bi-x-circle"></i> Сбросить
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Список детей в студиях -->
+        <div class="card">
+            <div class="card-header py-1">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-people"></i> Список детей в студиях
+                    {% if children %}
+                        <span class="badge bg-primary float-end">{{ children.paginator.count }}</span>
+                    {% endif %}
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                {% if children %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped table-hover mb-0">
+                            <!-- templates/children/studio_children_list.html (исправленный заголовок таблицы) -->
+<!-- templates/children/studio_children_list.html (исправленный заголовок таблицы) -->
+<!-- templates/children/studio_children_list.html (полностью переделываем заголовок таблицы) -->
+<thead class="table-primary">
+    <tr>
+        <!-- Колонка № -->
+        <th scope="col" class="align-middle">
+            <span class="fw-bold small">#</span>
+        </th>
+
+        <!-- Сортировка по ребенку -->
+        <th scope="col" class="align-middle">
+            <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=child__fio&order={% if current_sort == 'child__fio' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+               class="text-decoration-none text-dark fw-bold small">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Ребенок</span>
+                    {% if current_sort == 'child__fio' %}
+                        {% if current_order == 'asc' %}
+                            <i class="bi bi-sort-alpha-down text-primary"></i>
+                        {% else %}
+                            <i class="bi bi-sort-alpha-up text-primary"></i>
+                        {% endif %}
+                    {% else %}
+                        <i class="bi bi-arrow-down-up text-muted"></i>
+                    {% endif %}
+                </div>
+            </a>
+        </th>
+
+        <!-- Сортировка по студии -->
+        <th scope="col" class="align-middle">
+            <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=studio__name&order={% if current_sort == 'studio__name' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+               class="text-decoration-none text-dark fw-bold small">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Студия</span>
+                    {% if current_sort == 'studio__name' %}
+                        {% if current_order == 'asc' %}
+                            <i class="bi bi-sort-alpha-down text-primary"></i>
+                        {% else %}
+                            <i class="bi bi-sort-alpha-up text-primary"></i>
+                        {% endif %}
+                    {% else %}
+                        <i class="bi bi-arrow-down-up text-muted"></i>
+                    {% endif %}
+                </div>
+            </a>
+        </th>
+
+        <!-- Сортировка по направлению -->
+        <th scope="col" class="align-middle">
+            <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=direction__name&order={% if current_sort == 'direction__name' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+               class="text-decoration-none text-dark fw-bold small">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Направление</span>
+                    {% if current_sort == 'direction__name' %}
+                        {% if current_order == 'asc' %}
+                            <i class="bi bi-sort-alpha-down text-primary"></i>
+                        {% else %}
+                            <i class="bi bi-sort-alpha-up text-primary"></i>
+                        {% endif %}
+                    {% else %}
+                        <i class="bi bi-arrow-down-up text-muted"></i>
+                    {% endif %}
+                </div>
+            </a>
+        </th>
+
+        <!-- Сортировка по педагогу -->
+        <th scope="col" class="align-middle">
+            <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=teacher__fio&order={% if current_sort == 'teacher__fio' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+               class="text-decoration-none text-dark fw-bold small">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Педагог</span>
+                    {% if current_sort == 'teacher__fio' %}
+                        {% if current_order == 'asc' %}
+                            <i class="bi bi-sort-alpha-down text-primary"></i>
+                        {% else %}
+                            <i class="bi bi-sort-alpha-up text-primary"></i>
+                        {% endif %}
+                    {% else %}
+                        <i class="bi bi-arrow-down-up text-muted"></i>
+                    {% endif %}
+                </div>
+            </a>
+        </th>
+
+        <!-- Колонка "Файлы" БЕЗ сортировки -->
+        <th scope="col" class="align-middle">
+            <span class="fw-bold small">Файлы</span>
+        </th>
+
+        <!-- Колонка "Действия" БЕЗ сортировки -->
+        <th scope="col" class="align-middle">
+            <span class="fw-bold small">Действия</span>
+        </th>
+    </tr>
+</thead>
+                            <tbody>
+                                {% for enrollment in children %}
+                                    <tr>
+                                        <td class="small">
+                                            {% if page_obj %}
+                                                {{ forloop.counter|add:page_obj.start_index|add:-1 }}
+                                            {% else %}
+                                                {{ forloop.counter }}
+                                            {% endif %}
+                                        </td>
+                                        <td class="small"><strong>{{ enrollment.child.fio }}</strong></td>
+                                        <td class="small">{{ enrollment.studio.name }}</td>
+                                        <td class="small">{{ enrollment.direction.name }}</td>
+                                        <td class="small">{{ enrollment.teacher }}</td>
+                                        <td>
+                                            {% with files_count=enrollment.uploadedfile_set.count %}
+                                                {% if files_count > 0 %}
+                                                    <span class="badge bg-primary">{{ files_count }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">0</span>
+                                                {% endif %}
+                                            {% endwith %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <!-- Просмотр записи в студии -->
+                                                <a href="{% url 'children:enrollment_detail' enrollment.pk %}"
+                                                   class="btn btn-outline-info"
+                                                   title="Просмотр записи">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <!-- Редактирование записи в студии -->
+                                                <a href="{% url 'children:enrollment_update' enrollment.pk %}"
+                                                   class="btn btn-outline-warning"
+                                                   title="Редактировать запись">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if is_paginated %}
+                        <div class="p-2">
+                            <nav aria-label="Навигация">
+                                <ul class="pagination pagination-sm justify-content-center mb-0">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link"
+                                               href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}{% if current_sort %}sort={{ current_sort }}&{% endif %}{% if current_order %}order={{ current_order }}&{% endif %}page=1">
+                                                Первая
+                                            </a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link"
+                                               href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}{% if current_sort %}sort={{ current_sort }}&{% endif %}{% if current_order %}order={{ current_order }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                                                Назад
+                                            </a>
+                                        </li>
+                                    {% endif %}
+
+                                    <li class="page-item active">
+                                        <span class="page-link">
+                                            {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+                                        </span>
+                                    </li>
+
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link"
+                                               href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}{% if current_sort %}sort={{ current_sort }}&{% endif %}{% if current_order %}order={{ current_order }}&{% endif %}page={{ page_obj.next_page_number }}">
+                                                Вперед
+                                            </a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link"
+                                               href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}{% if current_sort %}sort={{ current_sort }}&{% endif %}{% if current_order %}order={{ current_order }}&{% endif %}page={{ page_obj.paginator.num_pages }}">
+                                                Последняя
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="p-3">
+                        <div class="alert alert-info py-2">
+                            <i class="bi bi-info-circle"></i>
+                            <small>Дети в студиях не найдены.
+                            {% if not studios %}У вас нет доступа к студиям.{% endif %}
+                            <a href="{% url 'children:enrollment_create' %}">Добавьте первого ребенка в студию</a>.</small>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

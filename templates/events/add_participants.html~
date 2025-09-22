@@ -1,0 +1,108 @@
+<!-- templates/events/add_participants.html -->
+{% extends 'base.html' %}
+
+{% block title %}Добавление участников - {{ event.name }} - Путь к успеху{% endblock %}
+
+{% block page_title %}Добавление участников в конкурс "{{ event.name }}"{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'events:detail' event.pk %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Назад к конкурсу
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="report_date" class="form-label">Дата отчета *</label>
+                        <input type="date"
+                               class="form-control"
+                               id="report_date"
+                               name="report_date"
+                               value="{{ request.POST.report_date|date:'Y-m-d'|default:'' }}"
+                               required>
+                        <div class="form-text">Формат: ДД.ММ.ГГГГ</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Выберите участников *</label>
+                        {% if enrollments %}
+                            <div class="border p-3" style="max-height: 400px; overflow-y: auto;">
+                                {% for enrollment in enrollments %}
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               name="participants"
+                                               value="{{ enrollment.id }}"
+                                               id="participant_{{ enrollment.id }}"
+                                               {% if enrollment.id|stringformat:"s" in request.POST.participants %}checked{% endif %}>
+                                        <label class="form-check-label" for="participant_{{ enrollment.id }}">
+                                            <strong>{{ enrollment.child.fio }}</strong><br>
+                                            <small class="text-muted">{{ enrollment.studio.name }}</small>
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i>
+                                Нет доступных детей для участия в этом конкурсе.<br>
+                                Либо все дети уже участвуют, либо у вас нет доступа к нужным записям.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        {% if enrollments %}
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-person-plus"></i> Добавить участников
+                            </button>
+                        {% endif %}
+                        <a href="{% url 'events:detail' event.pk %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Отмена
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Информация о конкурсе</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>{{ event.name }}</strong></p>
+                <p>Уровень: {{ event.get_level_display }}</p>
+                <p>Срок подачи: {{ event.application_deadline|date:"d.m.Y"|default:"Не указан" }}</p>
+                <p>Дата результатов: {{ event.result_date|date:"d.m.Y"|default:"Не указана" }}</p>
+
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-info-circle"></i> Инструкция</h6>
+                    <ul>
+                        <li>Выберите дату отчета</li>
+                        <li>Отметьте участников из списка</li>
+                        <li>Нажмите "Добавить участников"</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

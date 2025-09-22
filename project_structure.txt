@@ -1,0 +1,160 @@
+Структура проекта: 
+==================================================
+
+├── apps/
+│   ├── accounts/
+│   │   ├── __init__.py (85 bytes)
+│   │   ├── admin.py (2171 bytes)
+│   │   ├── apps.py (383 bytes)
+│   │   ├── forms.py (1677 bytes)
+│   │   ├── migrations/
+│   │   │   ├── 0001_initial.py (5832 bytes)
+│   │   │   └── __init__.py (0 bytes)
+│   │   ├── models.py (3555 bytes)
+│   │   ├── signals.py (717 bytes)
+│   │   ├── tests.py (63 bytes)
+│   │   ├── urls.py (351 bytes)
+│   │   └── views.py (2620 bytes)
+│   ├── children/
+│   │   ├── __init__.py (85 bytes)
+│   │   ├── admin.py (1857 bytes)
+│   │   ├── apps.py (238 bytes)
+│   │   ├── migrations/
+│   │   │   ├── 0001_initial.py (4843 bytes)
+│   │   │   ├── 0002_alter_studio_options_studio_direction_and_more.py (1155 bytes)
+│   │   │   ├── 0003_teacherstudioaccess.py (1565 bytes)
+│   │   │   └── __init__.py (0 bytes)
+│   │   ├── models.py (10008 bytes)
+│   │   ├── urls.py (2936 bytes)
+│   │   └── views.py (55533 bytes)
+│   ├── core/
+│   │   ├── __init__.py (0 bytes)
+│   │   ├── admin.py (66 bytes)
+│   │   ├── apps.py (146 bytes)
+│   │   ├── migrations/
+│   │   │   └── __init__.py (0 bytes)
+│   │   ├── models.py (60 bytes)
+│   │   ├── tests.py (63 bytes)
+│   │   └── views.py (66 bytes)
+│   ├── dashboard/
+│   │   ├── __init__.py (0 bytes)
+│   │   ├── admin.py (66 bytes)
+│   │   ├── apps.py (239 bytes)
+│   │   ├── migrations/
+│   │   │   └── __init__.py (0 bytes)
+│   │   ├── models.py (60 bytes)
+│   │   ├── urls.py (233 bytes)
+│   │   └── views.py (921 bytes)
+│   ├── events/
+│   │   ├── __init__.py (0 bytes)
+│   │   ├── admin.py (561 bytes)
+│   │   ├── apps.py (241 bytes)
+│   │   ├── migrations/
+│   │   │   ├── 0001_initial.py (2767 bytes)
+│   │   │   ├── 0002_event_created_by.py (630 bytes)
+│   │   │   └── __init__.py (0 bytes)
+│   │   ├── models.py (5026 bytes)
+│   │   ├── tests.py (63 bytes)
+│   │   ├── urls.py (1449 bytes)
+│   │   ├── urls.py~ (1328 bytes)
+│   │   └── views.py (36354 bytes)
+│   ├── participation/
+│   │   ├── __init__.py (100 bytes)
+│   │   ├── admin.py (756 bytes)
+│   │   ├── apps.py (245 bytes)
+│   │   ├── migrations/
+│   │   │   ├── 0001_initial.py (3694 bytes)
+│   │   │   └── __init__.py (0 bytes)
+│   │   ├── models.py (5319 bytes)
+│   │   ├── tests.py (63 bytes)
+│   │   ├── urls.py (1483 bytes)
+│   │   ├── views/
+│   │   │   ├── __init__.py (158 bytes)
+│   │   │   ├── base_views.py (4046 bytes)
+│   │   │   ├── file_handlers.py (4404 bytes)
+│   │   │   ├── file_views.py (28058 bytes)
+│   │   │   └── participation_views.py (20289 bytes)
+│   │   ├── views.py (36396 bytes)
+│   │   └── views.py~ (34924 bytes)
+│   └── reports/
+│       ├── __init__.py (0 bytes)
+│       ├── admin.py (66 bytes)
+│       ├── apps.py (152 bytes)
+│       ├── migrations/
+│       │   └── __init__.py (0 bytes)
+│       ├── models.py (60 bytes)
+│       ├── tests.py (63 bytes)
+│       └── views.py (66 bytes)
+├── create_struct_project.py (4562 bytes)
+├── db.sqlite3 (618496 bytes)
+├── manage.py (683 bytes)
+├── media/
+│   └── uploads/
+│       ├── participation_files/
+│       │   ├── 0b873864-7b60-4cfd-b704-e9921f8cb7b6.jpg (1030951 bytes)
+... ...
+│       │   └── f3b28da6-31e7-411b-8fe4-3bd804af78be.jpg (79820 bytes)
+│       └── reports/
+│           ├── report_список для Конструктора одаренности_20250918_083901.txt (22559 bytes)
+... ...
+│           └── report_список для Конструктора одаренности_20250918_230144.txt (706 bytes)
+├── project_structure.txt (0 bytes)
+├── static/
+│   ├── css/
+│   │   └── style.css (1367 bytes)
+│   ├── images/
+│   └── js/
+│       └── main.js (793 bytes)
+├── templates/
+│   ├── accounts/
+│   │   ├── login.html (1567 bytes)
+│   │   ├── profile.html (1878 bytes)
+│   │   └── register.html (1799 bytes)
+│   ├── base/
+│   │   ├── footer.html (510 bytes)
+│   │   ├── header.html (1163 bytes)
+│   │   └── sidebar.html (1971 bytes)
+│   ├── base.html (2876 bytes)
+│   ├── children/
+│   │   ├── child_confirm_delete.html (1815 bytes)
+│   │   ├── child_detail.html (12296 bytes)
+│   │   ├── child_form.html (3917 bytes)
+│   │   ├── child_list.html (5564 bytes)
+│   │   ├── childlist_list.html (2431 bytes)
+│   │   ├── direction_confirm_delete.html (3492 bytes)
+│   │   ├── direction_list.html (3144 bytes)
+│   │   ├── enrollment_confirm_delete.html (3999 bytes)
+│   │   ├── enrollment_detail.html (12477 bytes)
+│   │   ├── enrollment_form.html (5845 bytes)
+│   │   ├── studio_children_list.html (13049 bytes)
+│   │   ├── studio_confirm_delete.html (3424 bytes)
+│   │   ├── studio_list.html (3000 bytes)
+│   │   ├── teacher_confirm_delete.html (3443 bytes)
+│   │   └── upload_form.html (5649 bytes)
+│   ├── dashboard/
+│   │   ├── home.html (7049 bytes)
+│   │   └── map.html (2390 bytes)
+│   ├── events/
+│   │   ├── add_participants.html (5632 bytes)
+│   │   ├── add_single_participant.html (6832 bytes)
+│   │   ├── column_mapping_form.html (8542 bytes)
+│   │   ├── event_confirm_delete.html (3862 bytes)
+│   │   ├── event_detail.html (12529 bytes)
+│   │   ├── event_form.html (6561 bytes)
+│   │   ├── event_list.html (15383 bytes)
+│   │   ├── event_participants.html (7927 bytes)
+│   │   └── event_upload.html (5867 bytes)
+│   └── participation/
+│       ├── file_confirm_delete.html (2882 bytes)
+│       ├── file_detail.html (5192 bytes)
+│       ├── file_form.html (6184 bytes)
+│       ├── participation_confirm_delete.html (1928 bytes)
+│       ├── participation_detail.html (11924 bytes)
+│       ├── participation_form.html (8769 bytes)
+│       └── participation_list.html (10697 bytes)
+└── track/
+    ├── __init__.py (0 bytes)
+    ├── asgi.py (403 bytes)
+    ├── settings.py (3926 bytes)
+    ├── urls.py (920 bytes)
+    └── wsgi.py (403 bytes)

@@ -1,0 +1,57 @@
+<!-- templates/base/sidebar.html -->
+<div class="sidebar-sticky pt-3">
+    <ul class="nav flex-column">
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'dashboard:home' %}">
+                <i class="bi bi-house-door"></i>
+                Главная
+            </a>
+        </li>
+
+        {% if user.is_authenticated %}
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'children:list' %}">
+                    <i class="bi bi-people"></i>
+                    Все дети
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'children:studio_children' %}">
+                    <i class="bi bi-mortarboard"></i>
+                    Дети в студиях
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'events:list' %}">
+                    <i class="bi bi-trophy"></i>
+                    Конкурсы
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'participation:list' %}">
+                    <i class="bi bi-award"></i>
+                    Участия в конкурсах
+                </a>
+            </li>
+
+
+        {% endif %}
+    </ul>
+
+    {% if user.is_authenticated and user.is_staff %}
+        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+            <span>Администрирование</span>
+        </h6>
+        <ul class="nav flex-column mb-2">
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'admin:index' %}">
+                    <i class="bi bi-gear"></i>
+                    Панель администратора
+                </a>
+            </li>
+        </ul>
+    {% endif %}
+</div>

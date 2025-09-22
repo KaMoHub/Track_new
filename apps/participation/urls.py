@@ -1,0 +1,31 @@
+# apps/participation/urls.py
+from django.urls import path
+from . import views
+
+app_name = 'participation'
+
+urlpatterns = [
+    # URLs для участий
+    path('', views.ParticipationListView.as_view(), name='list'),
+    path('create/', views.ParticipationCreateView.as_view(), name='create'),
+    path('<int:pk>/', views.ParticipationDetailView.as_view(), name='detail'),
+    path('<int:pk>/update/', views.ParticipationUpdateView.as_view(), name='update'),
+    path('<int:pk>/delete/', views.ParticipationDeleteView.as_view(), name='delete'),
+
+    # URLs для загруженных файлов
+    path('files/', views.UploadedFileListView.as_view(), name='file_list'),
+    path('files/create/', views.UploadedFileCreateView.as_view(), name='file_create'),
+    path('files/<int:pk>/', views.UploadedFileDetailView.as_view(), name='file_detail'),
+    path('files/<int:pk>/update/', views.UploadedFileUpdateView.as_view(), name='file_update'),
+    path('files/<int:pk>/delete/', views.UploadedFileDeleteView.as_view(), name='file_delete'),
+    path('files/<int:pk>/download/', views.download_file, name='download_file'),
+    path('files/<int:pk>/view/', views.view_file, name='view_file'),  # Исправленный URL
+
+    # URLs для участий (продолжение)
+    path('<int:pk>/download/<int:file_id>/', views.download_file, name='download_file'),
+    path('<int:pk>/view/<int:file_id>/', views.view_file, name='view_file'),
+
+    # URLs для отчетов
+    # path('report/', views.ParticipationReportView.as_view(), name='report'),
+    # path('report/generate/', views.ParticipationReportView.as_view(), name='generate_report'),
+]

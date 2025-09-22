@@ -1,0 +1,26 @@
+<!-- templates/base/header.html -->
+{% load static %}
+<header class="navbar navbar-dark sticky-top bg-primary flex-md-nowrap shadow">
+    <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="{% url 'dashboard:home' %}">
+        <img src="{% static 'images/logo.png' %}" alt="Логотип" height="30" class="d-inline-block align-text-top me-2">
+        <span class="fs-5 align-middle">Путь к успеху</span>  <!-- Добавили align-middle -->
+    </a>
+
+    <button class="navbar-toggler d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="navbar-nav ms-auto">
+        <div class="nav-item text-nowrap">
+            {% if user.is_authenticated %}
+                <a class="nav-link px-3" href="{% url 'accounts:logout' %}">
+                    <i class="bi bi-box-arrow-right"></i> Выйти ({{ user.get_full_name|default:user.username }})
+                </a>
+            {% else %}
+                <a class="nav-link px-3" href="{% url 'accounts:login' %}">
+                    <i class="bi bi-box-arrow-in-right"></i> Войти
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</header>

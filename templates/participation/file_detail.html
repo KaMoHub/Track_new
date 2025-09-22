@@ -1,0 +1,119 @@
+<!-- templates/participation/file_detail.html -->
+{% extends 'base.html' %}
+
+{% block title %}Файл - {{ file.original_name }} - Путь к успеху{% endblock %}
+
+{% block page_title %}Информация о файле{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'participation:detail' file.participation.pk %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Назад к участию
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Основная информация</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th>Оригинальное имя:</th>
+                        <td>{{ file.original_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Имя в системе:</th>
+                        <td>{{ file.stored_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Размер:</th>
+                        <td>{{ file.file_size|filesizeformat }}</td>
+                    </tr>
+                    <tr>
+                        <th>MIME-тип:</th>
+                        <td>{{ file.mime_type }}</td>
+                    </tr>
+                    <tr>
+                        <th>Путь к файлу:</th>
+                        <td>{{ file.file_path }}</td>
+                    </tr>
+                    <tr>
+                        <th>Участие:</th>
+                        <td>
+                            <a href="{% url 'participation:detail' file.participation.pk %}">
+                                {{ file.participation.child.fio }} - {{ file.participation.event.name }}
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Дата загрузки:</th>
+                        <td>{{ file.upload_date|date:"d.m.Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Загрузил:</th>
+                        <td>{{ file.uploaded_by.get_full_name|default:file.uploaded_by.username }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Действия</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'participation:view_file' file.pk %}"
+                       class="btn btn-info"
+                       target="_blank">
+                        <i class="bi bi-eye"></i> Просмотреть в браузере
+                    </a>
+                    <a href="{% url 'participation:download_file' file.pk %}"
+                       class="btn btn-success">
+                        <i class="bi bi-download"></i> Скачать
+                    </a>
+                    {% if can_edit_file %}
+                        <a href="{% url 'participation:file_update' file.pk %}"
+                           class="btn btn-warning">
+                            <i class="bi bi-pencil"></i> Редактировать
+                        </a>
+                        <a href="{% url 'participation:file_delete' file.pk %}"
+                           class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Удалить
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'participation:detail' file.participation.pk %}"
+                       class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Назад к участию
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Предварительный просмотр</h5>
+            </div>
+            <div class="card-body text-center">
+                {% if file.is_image %}
+                    <img src="{% url 'participation:view_file' file.pk %}"
+                         class="img-fluid"
+                         alt="Предварительный просмотр изображения"
+                         style="max-height: 200px;">
+                {% elif file.is_pdf %}
+                    <i class="bi bi-file-pdf" style="font-size: 5rem; color: #dc3545;"></i>
+                    <p class="mt-2">PDF документ</p>
+                {% else %}
+                    <i class="bi bi-file-earmark" style="font-size: 5rem; color: #6c757d;"></i>
+                    <p class="mt-2">Файл документа</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
