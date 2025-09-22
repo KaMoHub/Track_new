@@ -1,6 +1,7 @@
 # apps/children/admin.py
 from django.contrib import admin
-from .models import Child, Direction, Studio, Teacher, StudioEnrollment, ChildList
+from django.db import models
+from .models import Child, Direction, Studio, Teacher, StudioEnrollment, ChildList, TeacherStudioAccess
 
 @admin.register(Child)
 class ChildAdmin(admin.ModelAdmin):
@@ -9,11 +10,21 @@ class ChildAdmin(admin.ModelAdmin):
     search_fields = ('fio',)
     ordering = ('fio',)
 
+
 @admin.register(Direction)
 class DirectionAdmin(admin.ModelAdmin):
-    list_display = ('name',)
-    search_fields = ('name',)
-    prepopulated_fields = {'name': ('name',)}
+    list_display = ['name']
+    search_fields = ['name']
+    ordering = ['name']
+
+    # Принудительная кодировка для русского языка
+    def __init__(self, model, admin_site):
+        super().__init__(model, admin_site)
+        # Убедимся, что используем UTF-8
+        import sys
+        if sys.getdefaultencoding() != 'utf-8':
+            reload(sys)
+            sys.setdefaultencoding('utf-8')
 
 @admin.register(Studio)
 class StudioAdmin(admin.ModelAdmin):

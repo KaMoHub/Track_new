@@ -1,5 +1,6 @@
 # apps/children/admin.py
 from django.contrib import admin
+from django.db import models
 from .models import Child, Direction, Studio, Teacher, StudioEnrollment, ChildList, TeacherStudioAccess
 
 @admin.register(Child)
@@ -9,11 +10,25 @@ class ChildAdmin(admin.ModelAdmin):
     search_fields = ('fio',)
     ordering = ('fio',)
 
+
+from django.contrib import admin
+from django.utils.safestring import mark_safe
+from .models import Direction
+
+
 @admin.register(Direction)
 class DirectionAdmin(admin.ModelAdmin):
-    list_display = ('name',)
-    search_fields = ('name',)
-    prepopulated_fields = {'name': ('name',)}
+    list_display = ['display_name']
+    search_fields = ['name']
+
+    def display_name(self, obj):
+        # Принудительное отображение в UTF-8
+        try:
+            return mark_safe(f'<span style="font-family: Arial, sans-serif;">{obj.name}</span>')
+        except:
+            return obj.name
+
+    display_name.short_description = 'Название направления'
 
 @admin.register(Studio)
 class StudioAdmin(admin.ModelAdmin):
