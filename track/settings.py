@@ -25,10 +25,7 @@ DATETIME_FORMAT = 'd.m.Y H:i'
 SHORT_DATE_FORMAT = 'd.m.Y'
 SHORT_DATETIME_FORMAT = 'd.m.Y H:i'
 
-# Разделители для чисел
-USE_THOUSAND_SEPARATOR = True
-THOUSAND_SEPARATOR = ' '
-DECIMAL_SEPARATOR = ','
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -52,7 +49,8 @@ DEBUG = True
 # DEBUG = 'RENDER' in os.environ # Будет True только на Render, иначе False
 
 # Разрешаем хост Render и localhost для разработки
-ALLOWED_HOSTS = []
+# В конец settings.py или найдите существующую настройку
+ALLOWED_HOSTS = ['cdomir.pythonanywhere.com', '127.0.0.1', 'localhost']
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
