@@ -198,6 +198,8 @@
 
 {% block extra_js %}
 <script>
+// templates/children/reports_dashboard.html (обновляем JavaScript)
+
 document.addEventListener('DOMContentLoaded', function() {
     // Обработка кнопок выгрузки отчетов
     document.querySelectorAll('.download-report').forEach(button => {
@@ -209,8 +211,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Для отчета 2 получаем параметры
                 const month = document.getElementById('month_2').value;
                 const year = document.getElementById('year_2').value;
-
                 const downloadUrl = `${baseUrl}?month=${month}&year=${year}`;
+                window.location.href = downloadUrl;
+            } else if (reportId === '3') {
+                // Для отчета 3 получаем параметры
+                const semester = document.getElementById('semester_3').value;
+                const year = document.getElementById('year_semester_3').value;
+                const downloadUrl = `${baseUrl}?semester=${semester}&year=${year}`;
                 window.location.href = downloadUrl;
             } else {
                 window.location.href = baseUrl;
