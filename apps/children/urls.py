@@ -50,7 +50,9 @@ urlpatterns = [
     path('upload/', views.ChildrenStudioUploadView.as_view(), name='upload'),  # Новый URL
 
 
-
-
-
+    # apps/children/urls.py
+    path('reports/', views.ReportsDashboardView.as_view(), name='reports_dashboard'),
+    path('reports/competition/', views.DirectionCompetitionReportView.as_view(), name='competition_report'),
+    path('reports/monthly-achievements/', views.MonthlyAchievementsReportView.as_view(), name='monthly_achievements_report'),
+    path('reports/semester-achievements/', views.SemesterAchievementsReportView.as_view(), name='semester_achievements_report'),
 ]

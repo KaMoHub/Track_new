@@ -423,237 +423,237 @@ class ParticipationDeleteView(BaseParticipationView, DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
-# apps/participation/views.py (добавляем в конец)
-import pandas as pd
-from django.http import HttpResponse
-from io import BytesIO
-
-
-class ParticipationReportView(LoginRequiredMixin, View):
-    """Отчет по участию детей в конкурсах"""
-
-    def get(self, request, *args, **kwargs):
-        """Показ формы для генерации отчета"""
-        user = request.user
-
-        # Получаем доступные направления в зависимости от роли пользователя
-        directions = self.get_accessible_directions(user)
-
-        context = {
-            'directions': directions,
-            'page_title': 'Отчет по участию детей в конкурсах'
-        }
-        return render(request, 'participation/report_form.html', context)
-
-    def post(self, request, *args, **kwargs):
-        """Генерация отчета"""
-        user = request.user
-
-        # Получаем параметры отчета
-        direction_ids = request.POST.getlist('directions')
-        start_date = request.POST.get('start_date')
-        end_date = request.POST.get('end_date')
-
-        # Проверяем параметры
-        if not direction_ids:
-            messages.error(request, 'Пожалуйста, выберите хотя бы одно направление.')
-            return self.get(request, *args, **kwargs)
-
-        try:
-            from datetime import datetime
-            start_date = datetime.strptime(start_date, '%Y-%m-%d').date() if start_date else None
-            end_date = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else None
-        except ValueError:
-            messages.error(request, 'Неверный формат дат.')
-            return self.get(request, *args, **kwargs)
-
-        # Генерируем отчет
-        try:
-            excel_buffer = self.generate_report(direction_ids, start_date, end_date, user)
-
-            # Создаем HTTP ответ с Excel файлом
-            response = HttpResponse(
-                excel_buffer.getvalue(),
-                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            )
-            response['Content-Disposition'] = 'attachment; filename="participation_report.xlsx"'
-
-            messages.success(request, 'Отчет успешно сгенерирован.')
-            return response
-
-        except Exception as e:
-            messages.error(request, f'Ошибка при генерации отчета: {str(e)}')
-            return self.get(request, *args, **kwargs)
-
-    def get_accessible_directions(self, user):
-        """Получение доступных направлений в зависимости от роли пользователя"""
-        if hasattr(user, 'role'):
-            if user.role == 'teacher':
-                try:
-                    teacher = Teacher.objects.get(user=user)
-                    # Только направления, к которым у педагога есть доступ через студии
-                    accessible_studio_ids = TeacherStudioAccess.objects.filter(
-                        teacher=teacher
-                    ).values_list('studio_id', flat=True)
-                    accessible_studios = Studio.objects.filter(id__in=accessible_studio_ids)
-                    direction_ids = accessible_studios.values_list('direction_id', flat=True)
-                    return Direction.objects.filter(id__in=direction_ids).order_by('name')
-                except Teacher.DoesNotExist:
-                    return Direction.objects.none()
-            elif user.role in ['methodist', 'admin']:
-                # Для методистов и админов все направления
-                return Direction.objects.all().order_by('name')
-        return Direction.objects.none()
-
-    def generate_report(self, direction_ids, start_date, end_date, user):
-        """Генерация отчета в Excel"""
-        from datetime import date
-        import calendar
-
-        # Определяем период отчета
-        if not start_date:
-            start_date = date(2025, 9, 1)  # Сентябрь 2025
-        if not end_date:
-            end_date = date(2026, 5, 31)  # Май 2026
-
-        print(f"DEBUG: Генерация отчета с {start_date} по {end_date}")
-        print(f"DEBUG: Направления: {direction_ids}")
-
-        # Получаем данные для отчета
-        queryset = Participation.objects.select_related(
-            'child', 'event', 'enrollment__studio', 'enrollment__teacher', 'enrollment__direction'
-        )
-
-        # Фильтруем по направлениям
-        queryset = queryset.filter(enrollment__studio__direction_id__in=direction_ids)
-
-        # Фильтруем по дате отчета
-        queryset = queryset.filter(report_date__range=[start_date, end_date])
-
-        # Фильтруем по доступу пользователя
-        if hasattr(user, 'role'):
-            if user.role == 'teacher':
-                try:
-                    teacher = Teacher.objects.get(user=user)
-                    queryset = queryset.filter(enrollment__teacher=teacher)
-                except Teacher.DoesNotExist:
-                    queryset = queryset.none()
-            # Для methodist и admin фильтрация не нужна - показываем все
-
-        print(f"DEBUG: Найдено записей для отчета: {queryset.count()}")
-
-        # Группируем данные
-        report_data = {}
-
-        # Месяцы отчетного периода
-        months = []
-        current_date = start_date
-        while current_date <= end_date:
-            months.append((current_date.year, current_date.month))
-            # Переходим к следующему месяцу
-            if current_date.month == 12:
-                current_date = date(current_date.year + 1, 1, 1)
-            else:
-                current_date = date(current_date.year, current_date.month + 1, 1)
-
-        print(f"DEBUG: Месяцы для отчета: {months}")
-
-        # Уровни конкурсов
-        level_choices = Event.LEVEL_CHOICES
-        level_dict = dict(level_choices)
-        print(f"DEBUG: Уровни конкурсов: {level_dict}")
-
-        # Собираем данные
-        for participation in queryset:
-            direction = participation.enrollment.direction
-            teacher = participation.enrollment.teacher
-            report_date = participation.report_date
-            event_level = participation.event.level
-
-            # Ключ для группировки
-            key = (direction.name, teacher.fio)
-
-            if key not in report_data:
-                report_data[key] = {}
-                # Инициализируем счетчики для всех месяцев и уровней
-                for year, month in months:
-                    month_key = f"{year}-{month:02d}"
-                    report_data[key][month_key] = {}
-                    for level_code, level_name in level_choices:
-                        report_data[key][month_key][level_code] = 0
-
-            # Увеличиваем счетчик
-            month_key = f"{report_date.year}-{report_date.month:02d}"
-            if month_key in report_data[key]:
-                if event_level in report_data[key][month_key]:
-                    report_data[key][month_key][event_level] += 1
-                    print(f"DEBUG: Увеличен счетчик для {key} {month_key} {event_level}")
-
-        print(f"DEBUG: Сгруппированные данные: {report_data}")
-
-        # Создаем Excel файл
-        buffer = BytesIO()
-        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-            # Создаем DataFrame
-            rows = []
-
-            # Заголовки колонок
-            headers = ['Направление', 'ФИО педагога']
-            for year, month in months:
-                month_name = calendar.month_name[month]
-                headers.extend([
-                    f'{month_name} {year} - Центровский',
-                    f'{month_name} {year} - Городской',
-                    f'{month_name} {year} - Районный',
-                    f'{month_name} {year} - Республиканский',
-                    f'{month_name} {year} - Региональный',
-                    f'{month_name} {year} - Межрегиональный',
-                    f'{month_name} {year} - Всероссийский',
-                    f'{month_name} {year} - Международный'
-                ])
-            headers.append('Итого')
-
-            # Данные
-            for (direction_name, teacher_fio), monthly_data in report_data.items():
-                row = [direction_name, teacher_fio]
-                total = 0
-
-                for year, month in months:
-                    month_key = f"{year}-{month:02d}"
-                    if month_key in monthly_data:
-                        month_total = 0
-                        for level_code, level_name in level_choices:
-                            count = monthly_data[month_key].get(level_code, 0)
-                            row.append(count)
-                            month_total += count
-                        total += month_total
-                    else:
-                        # Если нет данных за месяц, заполняем нулями
-                        for _ in level_choices:
-                            row.append(0)
-
-                row.append(total)
-                rows.append(row)
-
-            # Создаем DataFrame и записываем в Excel
-            df = pd.DataFrame(rows, columns=headers)
-            df.to_excel(writer, sheet_name='Отчет по участию', index=False)
-
-            # Форматируем лист
-            worksheet = writer.sheets['Отчет по участию']
-
-            # Автоподбор ширины колонок
-            for column in worksheet.columns:
-                max_length = 0
-                column_letter = column[0].column_letter
-                for cell in column:
-                    try:
-                        if len(str(cell.value)) > max_length:
-                            max_length = len(str(cell.value))
-                    except:
-                        pass
-                adjusted_width = (max_length + 2)
-                worksheet.column_dimensions[column_letter].width = min(adjusted_width, 50)
-
-        buffer.seek(0)
-        return buffer
+# # apps/participation/views.py (добавляем в конец)
+# import pandas as pd
+# from django.http import HttpResponse
+# from io import BytesIO
+#
+#
+# class ParticipationReportView(LoginRequiredMixin, View):
+#     """Отчет по участию детей в конкурсах"""
+#
+#     def get(self, request, *args, **kwargs):
+#         """Показ формы для генерации отчета"""
+#         user = request.user
+#
+#         # Получаем доступные направления в зависимости от роли пользователя
+#         directions = self.get_accessible_directions(user)
+#
+#         context = {
+#             'directions': directions,
+#             'page_title': 'Отчет по участию детей в конкурсах'
+#         }
+#         return render(request, 'participation/report_form.html', context)
+#
+#     def post(self, request, *args, **kwargs):
+#         """Генерация отчета"""
+#         user = request.user
+#
+#         # Получаем параметры отчета
+#         direction_ids = request.POST.getlist('directions')
+#         start_date = request.POST.get('start_date')
+#         end_date = request.POST.get('end_date')
+#
+#         # Проверяем параметры
+#         if not direction_ids:
+#             messages.error(request, 'Пожалуйста, выберите хотя бы одно направление.')
+#             return self.get(request, *args, **kwargs)
+#
+#         try:
+#             from datetime import datetime
+#             start_date = datetime.strptime(start_date, '%Y-%m-%d').date() if start_date else None
+#             end_date = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else None
+#         except ValueError:
+#             messages.error(request, 'Неверный формат дат.')
+#             return self.get(request, *args, **kwargs)
+#
+#         # Генерируем отчет
+#         try:
+#             excel_buffer = self.generate_report(direction_ids, start_date, end_date, user)
+#
+#             # Создаем HTTP ответ с Excel файлом
+#             response = HttpResponse(
+#                 excel_buffer.getvalue(),
+#                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+#             )
+#             response['Content-Disposition'] = 'attachment; filename="participation_report.xlsx"'
+#
+#             messages.success(request, 'Отчет успешно сгенерирован.')
+#             return response
+#
+#         except Exception as e:
+#             messages.error(request, f'Ошибка при генерации отчета: {str(e)}')
+#             return self.get(request, *args, **kwargs)
+#
+#     def get_accessible_directions(self, user):
+#         """Получение доступных направлений в зависимости от роли пользователя"""
+#         if hasattr(user, 'role'):
+#             if user.role == 'teacher':
+#                 try:
+#                     teacher = Teacher.objects.get(user=user)
+#                     # Только направления, к которым у педагога есть доступ через студии
+#                     accessible_studio_ids = TeacherStudioAccess.objects.filter(
+#                         teacher=teacher
+#                     ).values_list('studio_id', flat=True)
+#                     accessible_studios = Studio.objects.filter(id__in=accessible_studio_ids)
+#                     direction_ids = accessible_studios.values_list('direction_id', flat=True)
+#                     return Direction.objects.filter(id__in=direction_ids).order_by('name')
+#                 except Teacher.DoesNotExist:
+#                     return Direction.objects.none()
+#             elif user.role in ['methodist', 'admin']:
+#                 # Для методистов и админов все направления
+#                 return Direction.objects.all().order_by('name')
+#         return Direction.objects.none()
+#
+#     def generate_report(self, direction_ids, start_date, end_date, user):
+#         """Генерация отчета в Excel"""
+#         from datetime import date
+#         import calendar
+#
+#         # Определяем период отчета
+#         if not start_date:
+#             start_date = date(2025, 9, 1)  # Сентябрь 2025
+#         if not end_date:
+#             end_date = date(2026, 5, 31)  # Май 2026
+#
+#         print(f"DEBUG: Генерация отчета с {start_date} по {end_date}")
+#         print(f"DEBUG: Направления: {direction_ids}")
+#
+#         # Получаем данные для отчета
+#         queryset = Participation.objects.select_related(
+#             'child', 'event', 'enrollment__studio', 'enrollment__teacher', 'enrollment__direction'
+#         )
+#
+#         # Фильтруем по направлениям
+#         queryset = queryset.filter(enrollment__studio__direction_id__in=direction_ids)
+#
+#         # Фильтруем по дате отчета
+#         queryset = queryset.filter(report_date__range=[start_date, end_date])
+#
+#         # Фильтруем по доступу пользователя
+#         if hasattr(user, 'role'):
+#             if user.role == 'teacher':
+#                 try:
+#                     teacher = Teacher.objects.get(user=user)
+#                     queryset = queryset.filter(enrollment__teacher=teacher)
+#                 except Teacher.DoesNotExist:
+#                     queryset = queryset.none()
+#             # Для methodist и admin фильтрация не нужна - показываем все
+#
+#         print(f"DEBUG: Найдено записей для отчета: {queryset.count()}")
+#
+#         # Группируем данные
+#         report_data = {}
+#
+#         # Месяцы отчетного периода
+#         months = []
+#         current_date = start_date
+#         while current_date <= end_date:
+#             months.append((current_date.year, current_date.month))
+#             # Переходим к следующему месяцу
+#             if current_date.month == 12:
+#                 current_date = date(current_date.year + 1, 1, 1)
+#             else:
+#                 current_date = date(current_date.year, current_date.month + 1, 1)
+#
+#         print(f"DEBUG: Месяцы для отчета: {months}")
+#
+#         # Уровни конкурсов
+#         level_choices = Event.LEVEL_CHOICES
+#         level_dict = dict(level_choices)
+#         print(f"DEBUG: Уровни конкурсов: {level_dict}")
+#
+#         # Собираем данные
+#         for participation in queryset:
+#             direction = participation.enrollment.direction
+#             teacher = participation.enrollment.teacher
+#             report_date = participation.report_date
+#             event_level = participation.event.level
+#
+#             # Ключ для группировки
+#             key = (direction.name, teacher.fio)
+#
+#             if key not in report_data:
+#                 report_data[key] = {}
+#                 # Инициализируем счетчики для всех месяцев и уровней
+#                 for year, month in months:
+#                     month_key = f"{year}-{month:02d}"
+#                     report_data[key][month_key] = {}
+#                     for level_code, level_name in level_choices:
+#                         report_data[key][month_key][level_code] = 0
+#
+#             # Увеличиваем счетчик
+#             month_key = f"{report_date.year}-{report_date.month:02d}"
+#             if month_key in report_data[key]:
+#                 if event_level in report_data[key][month_key]:
+#                     report_data[key][month_key][event_level] += 1
+#                     print(f"DEBUG: Увеличен счетчик для {key} {month_key} {event_level}")
+#
+#         print(f"DEBUG: Сгруппированные данные: {report_data}")
+#
+#         # Создаем Excel файл
+#         buffer = BytesIO()
+#         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+#             # Создаем DataFrame
+#             rows = []
+#
+#             # Заголовки колонок
+#             headers = ['Направление', 'ФИО педагога']
+#             for year, month in months:
+#                 month_name = calendar.month_name[month]
+#                 headers.extend([
+#                     f'{month_name} {year} - Центровский',
+#                     f'{month_name} {year} - Городской',
+#                     f'{month_name} {year} - Районный',
+#                     f'{month_name} {year} - Республиканский',
+#                     f'{month_name} {year} - Региональный',
+#                     f'{month_name} {year} - Межрегиональный',
+#                     f'{month_name} {year} - Всероссийский',
+#                     f'{month_name} {year} - Международный'
+#                 ])
+#             headers.append('Итого')
+#
+#             # Данные
+#             for (direction_name, teacher_fio), monthly_data in report_data.items():
+#                 row = [direction_name, teacher_fio]
+#                 total = 0
+#
+#                 for year, month in months:
+#                     month_key = f"{year}-{month:02d}"
+#                     if month_key in monthly_data:
+#                         month_total = 0
+#                         for level_code, level_name in level_choices:
+#                             count = monthly_data[month_key].get(level_code, 0)
+#                             row.append(count)
+#                             month_total += count
+#                         total += month_total
+#                     else:
+#                         # Если нет данных за месяц, заполняем нулями
+#                         for _ in level_choices:
+#                             row.append(0)
+#
+#                 row.append(total)
+#                 rows.append(row)
+#
+#             # Создаем DataFrame и записываем в Excel
+#             df = pd.DataFrame(rows, columns=headers)
+#             df.to_excel(writer, sheet_name='Отчет по участию', index=False)
+#
+#             # Форматируем лист
+#             worksheet = writer.sheets['Отчет по участию']
+#
+#             # Автоподбор ширины колонок
+#             for column in worksheet.columns:
+#                 max_length = 0
+#                 column_letter = column[0].column_letter
+#                 for cell in column:
+#                     try:
+#                         if len(str(cell.value)) > max_length:
+#                             max_length = len(str(cell.value))
+#                     except:
+#                         pass
+#                 adjusted_width = (max_length + 2)
+#                 worksheet.column_dimensions[column_letter].width = min(adjusted_width, 50)
+#
+#         buffer.seek(0)
+#         return buffer

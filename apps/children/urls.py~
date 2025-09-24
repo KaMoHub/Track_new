@@ -46,10 +46,12 @@ urlpatterns = [
     path('studio-children/<int:pk>/update/', views.EnrollmentUpdateView.as_view(), name='enrollment_update'),
     path('studio-children/<int:pk>/delete/', views.EnrollmentDeleteView.as_view(), name='enrollment_delete'),
 
-# URLs для удаления
+    # URLs для загрузки данных
+    path('upload/', views.ChildrenStudioUploadView.as_view(), name='upload'),  # Новый URL
 
 
-
-
-
+    # apps/children/urls.py
+    path('reports/', views.ReportsDashboardView.as_view(), name='reports_dashboard'),
+    path('reports/competition/', views.DirectionCompetitionReportView.as_view(), name='competition_report'),
+    path('reports/monthly-achievements/', views.MonthlyAchievementsReportView.as_view(), name='monthly_achievements_report'),
 ]

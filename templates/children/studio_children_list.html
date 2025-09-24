@@ -7,7 +7,7 @@
 
 {% block page_actions %}
     <a href="{% url 'children:enrollment_create' %}" class="btn btn-primary btn-sm">
-        <i class="bi bi-person-plus"></i> Добавить ребенка
+        <i class="bi bi-person-plus"></i> Добавить ребенка в студию
     </a>
     {% if user.is_staff or user.is_superuser %}
         <a href="{% url 'children:upload' %}" class="btn btn-success btn-sm">

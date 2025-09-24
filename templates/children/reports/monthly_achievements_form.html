@@ -1,0 +1,67 @@
+<!-- templates/children/reports/monthly_achievements_form.html -->
+{% extends 'base.html' %}
+
+{% block title %}Отчет по достижениям за месяц - Путь к успеху{% endblock %}
+
+{% block page_title %}Отчет по достижениям за месяц{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <form method="get" action="{% url 'children:monthly_achievements_report' %}">
+                    <div class="mb-3">
+                        <label for="month" class="form-label">Месяц</label>
+                        <select name="month" id="month" class="form-select" required>
+                            <option value="1" {% if current_month == 1 %}selected{% endif %}>Январь</option>
+                            <option value="2" {% if current_month == 2 %}selected{% endif %}>Февраль</option>
+                            <option value="3" {% if current_month == 3 %}selected{% endif %}>Март</option>
+                            <option value="4" {% if current_month == 4 %}selected{% endif %}>Апрель</option>
+                            <option value="5" {% if current_month == 5 %}selected{% endif %}>Май</option>
+                            <option value="6" {% if current_month == 6 %}selected{% endif %}>Июнь</option>
+                            <option value="7" {% if current_month == 7 %}selected{% endif %}>Июль</option>
+                            <option value="8" {% if current_month == 8 %}selected{% endif %}>Август</option>
+                            <option value="9" {% if current_month == 9 %}selected{% endif %}>Сентябрь</option>
+                            <option value="10" {% if current_month == 10 %}selected{% endif %}>Октябрь</option>
+                            <option value="11" {% if current_month == 11 %}selected{% endif %}>Ноябрь</option>
+                            <option value="12" {% if current_month == 12 %}selected{% endif %}>Декабрь</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="year" class="form-label">Год</label>
+                        <input type="number" name="year" id="year" class="form-control"
+                               value="{{ current_year }}" min="2020" max="2030" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-file-earmark-excel"></i> Сгенерировать отчет
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Информация об отчете</h5>
+            </div>
+            <div class="card-body">
+                <p>Отчет содержит информацию о достижениях детей за выбранный месяц.</p>
+                <p><strong>Включает следующие данные:</strong></p>
+                <ul>
+                    <li>ФИО ребенка</li>
+                    <li>Направление и студию</li>
+                    <li>Название мероприятия и уровень</li>
+                    <li>ФИО педагога</li>
+                    <li>Форму участия и результат</li>
+                    <li>Дату участия</li>
+                </ul>
+                <p>Отчет формируется в формате Excel.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

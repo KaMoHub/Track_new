@@ -9,9 +9,11 @@
     <a href="{% url 'children:enrollment_create' %}" class="btn btn-primary btn-sm">
         <i class="bi bi-person-plus"></i> Добавить ребенка
     </a>
-    <a href="{% url 'children:upload' %}" class="btn btn-success btn-sm">
-        <i class="bi bi-file-earmark-excel"></i> Загрузить Excel
-    </a>
+    {% if user.is_staff or user.is_superuser %}
+        <a href="{% url 'children:upload' %}" class="btn btn-success btn-sm">
+            <i class="bi bi-file-earmark-excel"></i> Загрузить Excel
+        </a>
+    {% endif %}
 {% endblock %}
 
 {% block content %}

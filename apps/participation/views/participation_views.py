@@ -323,6 +323,18 @@ class ParticipationUpdateView(BaseParticipationView, UpdateView):
     fields = ['enrollment', 'event', 'result_type', 'custom_result', 'report_date']
     success_url = reverse_lazy('participation:list')
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        instance = self.get_object()
+
+        # Добавляем информацию о текущем выборе для отображения в шаблоне
+        if instance.enrollment:
+            context['enrollment_info'] = {
+                'child_fio': instance.enrollment.child.fio,
+                'studio_name': instance.enrollment.studio.name
+            }
+
+        return context
     def dispatch(self, request, *args, **kwargs):
         """Проверка прав доступа перед выполнением действия"""
         # Проверяем доступ перед выполнением действия

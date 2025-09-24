@@ -15,17 +15,105 @@
 {% block content %}
 <div class="row">
     <div class="col-md-12">
+        <!-- Поисковая форма -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-8">
+                        <label for="search" class="form-label">Поиск по ФИО</label>
+                        <input type="text"
+                               class="form-control"
+                               id="search"
+                               name="search"
+                               placeholder="Введите ФИО ребенка..."
+                               value="{{ request.GET.search }}">
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="bi bi-search"></i> Найти
+                        </button>
+                        {% if request.GET.search %}
+                            <a href="{% url 'children:list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Сбросить
+                            </a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-body">
                 {% if children %}
+                    <!-- Информация о результатах поиска -->
+                    {% if request.GET.search %}
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle"></i>
+                            Найдено детей: {{ children|length }}
+                            {% if request.GET.search %}
+                                по запросу "{{ request.GET.search }}"
+                            {% endif %}
+                            <a href="{% url 'children:list' %}" class="float-end">
+                                Показать всех детей
+                            </a>
+                        </div>
+                    {% endif %}
+
                     <div class="table-responsive">
                         <table class="table table-striped table-hover">
                             <thead>
                                 <tr>
-                                    <th>ФИО</th>
-                                    <th>Дата рождения</th>
-                                    <th>Возраст</th>
-                                    <th>Пол</th>
+                                    <th class="sortable">
+                                        <a href="?sort={% if current_sort == 'fio' %}-{% endif %}fio{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}"
+                                           class="text-decoration-none text-dark d-flex align-items-center justify-content-between">
+                                            <span>ФИО</span>
+                                            <span class="sort-icons">
+                                                {% if current_sort == 'fio' %}
+                                                    <i class="bi bi-arrow-up"></i>
+                                                {% elif current_sort == '-fio' %}
+                                                    <i class="bi bi-arrow-down"></i>
+                                                {% else %}
+                                                    <i class="bi bi-arrow-down-up text-muted"></i>
+                                                {% endif %}
+                                            </span>
+                                        </a>
+                                    </th>
+                                    <th class="sortable">
+                                        <a href="?sort={% if current_sort == 'date_of_birth' %}-{% endif %}date_of_birth{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}"
+                                           class="text-decoration-none text-dark d-flex align-items-center justify-content-between">
+                                            <span>Дата рождения</span>
+                                            <span class="sort-icons">
+                                                {% if current_sort == 'date_of_birth' %}
+                                                    <i class="bi bi-arrow-up"></i>
+                                                {% elif current_sort == '-date_of_birth' %}
+                                                    <i class="bi bi-arrow-down"></i>
+                                                {% else %}
+                                                    <i class="bi bi-arrow-down-up text-muted"></i>
+                                                {% endif %}
+                                            </span>
+                                        </a>
+                                    </th>
+                                    <th>
+                                        <span class="d-flex align-items-center justify-content-between text-dark">
+                                            <span>Возраст</span>
+                                            <i class="bi bi-arrow-down-up text-muted ms-1" title="Сортировка по дате рождения"></i>
+                                        </span>
+                                    </th>
+                                    <th class="sortable">
+                                        <a href="?sort={% if current_sort == 'gender' %}-{% endif %}gender{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}"
+                                           class="text-decoration-none text-dark d-flex align-items-center justify-content-between">
+                                            <span>Пол</span>
+                                            <span class="sort-icons">
+                                                {% if current_sort == 'gender' %}
+                                                    <i class="bi bi-arrow-up"></i>
+                                                {% elif current_sort == '-gender' %}
+                                                    <i class="bi bi-arrow-down"></i>
+                                                {% else %}
+                                                    <i class="bi bi-arrow-down-up text-muted"></i>
+                                                {% endif %}
+                                            </span>
+                                        </a>
+                                    </th>
                                     <th>Действия</th>
                                 </tr>
                             </thead>
@@ -68,10 +156,10 @@
                             <ul class="pagination justify-content-center">
                                 {% if page_obj.has_previous %}
                                     <li class="page-item">
-                                        <a class="page-link" href="?page=1">Первая</a>
+                                        <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Первая</a>
                                     </li>
                                     <li class="page-item">
-                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Предыдущая</a>
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Предыдущая</a>
                                     </li>
                                 {% endif %}
 
@@ -83,10 +171,10 @@
 
                                 {% if page_obj.has_next %}
                                     <li class="page-item">
-                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Следующая</a>
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Следующая</a>
                                     </li>
                                     <li class="page-item">
-                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Последняя</a>
+                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Последняя</a>
                                     </li>
                                 {% endif %}
                             </ul>
@@ -95,11 +183,40 @@
                 {% else %}
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle"></i>
-                        Список детей пуст. <a href="{% url 'children:create' %}">Добавьте первого ребенка</a>.
+                        {% if request.GET.search %}
+                            Дети по запросу "{{ request.GET.search }}" не найдены.
+                            <a href="{% url 'children:list' %}">Показать всех детей</a>
+                        {% else %}
+                            Список детей пуст. <a href="{% url 'children:create' %}">Добавьте первого ребенка</a>.
+                        {% endif %}
                     </div>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.sortable {
+    position: relative;
+    cursor: pointer;
+}
+
+.sortable a {
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0.75rem;
+    margin: -0.75rem;
+}
+
+.sortable:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+.sort-icons {
+    margin-left: 0.5rem;
+    font-size: 0.9em;
+}
+</style>
 {% endblock %}

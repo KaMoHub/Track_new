@@ -1,4 +1,4 @@
-<!-- templates/base/sidebar.html -->
+<!-- templates/base/sidebar.html (добавляем ссылку на отчеты) -->
 <div class="sidebar-sticky pt-3">
     <ul class="nav flex-column">
         <li class="nav-item">
@@ -36,10 +36,23 @@
                     Участия в конкурсах
                 </a>
             </li>
-
-
         {% endif %}
     </ul>
+
+    <!-- Добавляем раздел с отчетами -->
+    {% if user.is_authenticated %}
+    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+        <span>Отчеты</span>
+    </h6>
+    <ul class="nav flex-column mb-2">
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'children:reports_dashboard' %}">
+                <i class="bi bi-graph-up"></i>
+                Аналитические отчеты
+            </a>
+        </li>
+    </ul>
+    {% endif %}
 
     {% if user.is_authenticated and user.is_staff %}
         <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">

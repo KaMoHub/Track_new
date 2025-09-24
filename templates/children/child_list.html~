@@ -63,56 +63,64 @@
                         <table class="table table-striped table-hover">
                             <thead>
                                 <tr>
-                                    <th>
+                                    <th class="sortable">
                                         <a href="?sort={% if current_sort == 'fio' %}-{% endif %}fio{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}"
-                                           class="text-decoration-none text-dark d-flex align-items-center">
-                                            ФИО
-                                            {% if current_sort == 'fio' %}
-                                                <i class="bi bi-arrow-up ms-1"></i>
-                                            {% elif current_sort == '-fio' %}
-                                                <i class="bi bi-arrow-down ms-1"></i>
-                                            {% else %}
-                                                <i class="bi bi-arrow-down-up ms-1 text-muted"></i>
-                                            {% endif %}
+                                           class="text-decoration-none text-dark d-flex align-items-center justify-content-between">
+                                            <span>ФИО</span>
+                                            <span class="sort-icons">
+                                                {% if current_sort == 'fio' %}
+                                                    <i class="bi bi-arrow-up"></i>
+                                                {% elif current_sort == '-fio' %}
+                                                    <i class="bi bi-arrow-down"></i>
+                                                {% else %}
+                                                    <i class="bi bi-arrow-down-up text-muted"></i>
+                                                {% endif %}
+                                            </span>
                                         </a>
                                     </th>
-                                    <th>
+                                    <th class="sortable">
                                         <a href="?sort={% if current_sort == 'date_of_birth' %}-{% endif %}date_of_birth{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}"
-                                           class="text-decoration-none text-dark d-flex align-items-center">
-                                            Дата рождения
-                                            {% if current_sort == 'date_of_birth' %}
-                                                <i class="bi bi-arrow-up ms-1"></i>
-                                            {% elif current_sort == '-date_of_birth' %}
-                                                <i class="bi bi-arrow-down ms-1"></i>
-                                            {% else %}
-                                                <i class="bi bi-arrow-down-up ms-1 text-muted"></i>
-                                            {% endif %}
+                                           class="text-decoration-none text-dark d-flex align-items-center justify-content-between">
+                                            <span>Дата рождения</span>
+                                            <span class="sort-icons">
+                                                {% if current_sort == 'date_of_birth' %}
+                                                    <i class="bi bi-arrow-up"></i>
+                                                {% elif current_sort == '-date_of_birth' %}
+                                                    <i class="bi bi-arrow-down"></i>
+                                                {% else %}
+                                                    <i class="bi bi-arrow-down-up text-muted"></i>
+                                                {% endif %}
+                                            </span>
                                         </a>
                                     </th>
-                                    <th>
+                                    <th class="sortable">
                                         <a href="?sort={% if current_sort == 'age' %}-{% endif %}age{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}"
-                                           class="text-decoration-none text-dark d-flex align-items-center">
-                                            Возраст
-                                            {% if current_sort == 'age' %}
-                                                <i class="bi bi-arrow-up ms-1"></i>
-                                            {% elif current_sort == '-age' %}
-                                                <i class="bi bi-arrow-down ms-1"></i>
-                                            {% else %}
-                                                <i class="bi bi-arrow-down-up ms-1 text-muted"></i>
-                                            {% endif %}
+                                           class="text-decoration-none text-dark d-flex align-items-center justify-content-between">
+                                            <span>Возраст</span>
+                                            <span class="sort-icons">
+                                                {% if current_sort == 'age' %}
+                                                    <i class="bi bi-arrow-up"></i>
+                                                {% elif current_sort == '-age' %}
+                                                    <i class="bi bi-arrow-down"></i>
+                                                {% else %}
+                                                    <i class="bi bi-arrow-down-up text-muted"></i>
+                                                {% endif %}
+                                            </span>
                                         </a>
                                     </th>
-                                    <th>
+                                    <th class="sortable">
                                         <a href="?sort={% if current_sort == 'gender' %}-{% endif %}gender{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}"
-                                           class="text-decoration-none text-dark d-flex align-items-center">
-                                            Пол
-                                            {% if current_sort == 'gender' %}
-                                                <i class="bi bi-arrow-up ms-1"></i>
-                                            {% elif current_sort == '-gender' %}
-                                                <i class="bi bi-arrow-down ms-1"></i>
-                                            {% else %}
-                                                <i class="bi bi-arrow-down-up ms-1 text-muted"></i>
-                                            {% endif %}
+                                           class="text-decoration-none text-dark d-flex align-items-center justify-content-between">
+                                            <span>Пол</span>
+                                            <span class="sort-icons">
+                                                {% if current_sort == 'gender' %}
+                                                    <i class="bi bi-arrow-up"></i>
+                                                {% elif current_sort == '-gender' %}
+                                                    <i class="bi bi-arrow-down"></i>
+                                                {% else %}
+                                                    <i class="bi bi-arrow-down-up text-muted"></i>
+                                                {% endif %}
+                                            </span>
                                         </a>
                                     </th>
                                     <th>Действия</th>
@@ -196,4 +204,28 @@
         </div>
     </div>
 </div>
+
+<style>
+.sortable {
+    position: relative;
+    cursor: pointer;
+}
+
+.sortable a {
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0.75rem;
+    margin: -0.75rem;
+}
+
+.sortable:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+.sort-icons {
+    margin-left: 0.5rem;
+    font-size: 0.9em;
+}
+</style>
 {% endblock %}

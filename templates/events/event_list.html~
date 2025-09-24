@@ -20,54 +20,39 @@
 <div class="row">
     <div class="col-md-12">
         <!-- Фильтры -->
-        <!-- templates/events/event_list.html (улучшаем карточку фильтров) -->
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-light">
-        <h5 class="card-title mb-0">
-            <i class="bi bi-funnel"></i> Фильтры
-        </h5>
-    </div>
-    <div class="card-body">
-        <form method="get" class="row g-3">
-            <div class="col-md-4">
-                <label for="level" class="form-label fw-bold">Уровень</label>
-                <select name="level" id="level" class="form-select form-select-sm">
-                    <option value="">Все уровни</option>
-                    {% for level_choice in levels %}
-                        <option value="{{ level_choice.0 }}" {% if current_level == level_choice.0 %}selected{% endif %}>
-                            {{ level_choice.1 }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label for="search" class="form-label fw-bold">Поиск</label>
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text">
-                        <i class="bi bi-search"></i>
-                    </span>
-                    <input type="text"
-                           name="search"
-                           id="search"
-                           class="form-control"
-                           placeholder="Поиск по названию..."
-                           value="{{ current_search }}">
-                </div>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label fw-bold">&nbsp;</label>
-                <div class="d-grid gap-2 d-md-flex">
-                    <button type="submit" class="btn btn-primary btn-sm">
-                        <i class="bi bi-funnel"></i> Применить
-                    </button>
-                    <a href="{% url 'events:list' %}" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-x-circle"></i> Сбросить
-                    </a>
-                </div>
-            </div>
-        </form>
-    </div>
+        <div class="card mb-3">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-4">
+    <label for="level" class="form-label">Уровень</label>
+    <select name="level" id="level" class="form-select">
+        <option value="">Все уровни</option>
+        {% for value, label in levels %}
+            <option value="{{ value }}" {% if current_level == value %}selected{% endif %}>
+                {{ label }}
+            </option>
+        {% endfor %}
+    </select>
 </div>
+                    <div class="col-md-4">
+                        <label for="search" class="form-label">Поиск</label>
+                        <input type="text" name="search" id="search" class="form-control"
+                               placeholder="Поиск по названию или описанию" value="{{ current_search }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i> Фильтровать
+                            </button>
+                            <a href="{% url 'events:list' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Сбросить
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <div class="card">
             <div class="card-body">

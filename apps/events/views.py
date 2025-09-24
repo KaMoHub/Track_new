@@ -82,47 +82,39 @@ class EventListView(LoginRequiredMixin, ListView):
 
         return queryset
 
+    # apps/events/views.py (исправляем get_context_data в EventListView)
+    # apps/events/views.py (исправляем get_context_data в EventListView)
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
 
-        # Для фильтров - только доступные данные
+        # ВСЕГДА используем полный список уровней из модели
+        context['levels'] = Event.LEVEL_CHOICES
+        context['current_level'] = self.request.GET.get('level', '')
+        context['current_search'] = self.request.GET.get('search', '')
+        context['current_sort'] = self.request.GET.get('sort', 'name')
+        context['current_order'] = self.request.GET.get('order', 'asc')
+
+        # Для фильтров - только доступные данные (опционально)
         if hasattr(user, 'role'):
             if user.role == 'teacher':
                 try:
                     teacher = Teacher.objects.get(user=user)
-                    # Только конкурсы этого педагога
+                    # Только конкурсы этого педагога (для events_list)
                     context['events_list'] = Event.objects.filter(
                         participation__enrollment__teacher=teacher
                     ).distinct().filter(is_active=True).order_by('name')
-                    # Только уровни этих конкурсов
-                    context['levels'] = Event.objects.filter(
-                        participation__enrollment__teacher=teacher
-                    ).distinct().values_list('level', flat=True)
                 except (Teacher.DoesNotExist, Exception):
                     context['events_list'] = Event.objects.none()
-                    context['levels'] = []
             elif user.role in ['methodist', 'admin']:
                 # Для методистов и админов - все данные
                 context['events_list'] = Event.objects.filter(is_active=True).order_by('name')
-                context['levels'] = [choice[0] for choice in Event.LEVEL_CHOICES]
             else:
                 context['events_list'] = Event.objects.none()
-                context['levels'] = []
         else:
             context['events_list'] = Event.objects.none()
-            context['levels'] = []
-
-        # Текущие значения фильтров
-        context['current_level'] = self.request.GET.get('level', '')
-        context['current_search'] = self.request.GET.get('search', '')
-
-        # Текущие значения сортировки
-        context['current_sort'] = self.request.GET.get('sort', 'name')
-        context['current_order'] = self.request.GET.get('order', 'asc')
 
         return context
-
 
 # apps/events/views.py (исправляем EventDetailView)
 class EventDetailView(LoginRequiredMixin, DetailView):

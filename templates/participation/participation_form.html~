@@ -28,7 +28,7 @@
                             <option value="">---------</option>
                             {% for enrollment in form.enrollment.field.queryset %}
                                 <option value="{{ enrollment.id }}"
-                                        {% if form.enrollment.value|stringformat:"s" == enrollment.id|stringformat:"s" %}selected{% endif %}>
+                                        {% if form.enrollment.value == enrollment.id|stringformat:"s" or enrollment_id == enrollment.id|stringformat:"s" %}selected{% endif %}>
                                     {{ enrollment.child.fio }} ({{ enrollment.studio.name }})
                                 </option>
                             {% endfor %}
@@ -41,7 +41,7 @@
                         {% if enrollment_info %}
                             <div class="alert alert-info mt-2">
                                 <i class="bi bi-info-circle"></i>
-                                <strong>Текущий выбор:</strong> {{ enrollment_info.child_fio }} - {{ enrollment_info.studio_name }}
+                                <strong>Выбрано:</strong> {{ enrollment_info.child_fio }} - {{ enrollment_info.studio_name }}
                             </div>
                         {% endif %}
                     </div>
