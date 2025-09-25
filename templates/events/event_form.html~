@@ -52,12 +52,8 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="application_deadline" class="form-label">Срок подачи заявок</label>
-                                <input type="date"
-                                       class="form-control"
-                                       id="application_deadline"
-                                       name="application_deadline"
-                                       value="{{ form.application_deadline.value|date:'Y-m-d' }}">
+                                <label for="{{ form.application_deadline.id_for_label }}" class="form-label">Срок подачи заявок</label>
+                                {{ form.application_deadline }}
                                 <div class="form-text">Формат: ДД.ММ.ГГГГ</div>
                                 {% if form.application_deadline.errors %}
                                     <div class="text-danger">{{ form.application_deadline.errors }}</div>
@@ -66,12 +62,8 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="result_date" class="form-label">Дата результатов</label>
-                                <input type="date"
-                                       class="form-control"
-                                       id="result_date"
-                                       name="result_date"
-                                       value="{{ form.result_date.value|date:'Y-m-d' }}">
+                                <label for="{{ form.result_date.id_for_label }}" class="form-label">Дата результатов</label>
+                                {{ form.result_date }}
                                 <div class="form-text">Формат: ДД.ММ.ГГГГ</div>
                                 {% if form.result_date.errors %}
                                     <div class="text-danger">{{ form.result_date.errors }}</div>
@@ -149,4 +141,33 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Функция для применения маски даты
+    function applyDateMask(input) {
+        input.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+
+            if (value.length >= 2) {
+                value = value.substring(0, 2) + '.' + value.substring(2);
+            }
+            if (value.length >= 5) {
+                value = value.substring(0, 5) + '.' + value.substring(5, 9);
+            }
+
+            e.target.value = value;
+        });
+
+        // Ограничиваем длину ввода
+        input.setAttribute('maxlength', '10');
+    }
+
+    // Применяем маску ко всем полям даты
+    const dateInputs = document.querySelectorAll('input[type="text"][placeholder*="дд.мм.гггг"]');
+    dateInputs.forEach(applyDateMask);
+});
+</script>
 {% endblock %}

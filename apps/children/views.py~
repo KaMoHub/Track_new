@@ -1992,78 +1992,56 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
             top=Side(style='thin'), bottom=Side(style='thin')
         )
 
-        # ИСПРАВЛЕНИЕ: правильно рассчитываем количество колонок
-        if not df.empty:
-            num_columns = len(df.columns)
-        else:
-            # Рассчитываем ожидаемое количество колонок на основе структуры
-            num_columns = 2 + (len(levels) * len(months) * 2) + 3  # №, ФИО + (уровни × месяцы × 2) + итоги
+        # Безопасное определение количества колонок
+        try:
+            if not df.empty:
+                num_columns = len(df.columns)
+            else:
+                num_columns = 2 + (len(levels) * len(months) * 2) + 3
+        except:
+            num_columns = 50  # Значение по умолчанию
 
-        # Настраиваем ширину колонок
-        column_widths = {'A': 5, 'B': 30}
+        # Ограничиваем максимальное количество колонок
+        num_columns = min(num_columns, 100)
 
-        # ИСПРАВЛЕНИЕ: проверяем корректность номеров колонок перед использованием
-        if num_columns >= 3:
-            for col_num in range(3, min(num_columns - 2, num_columns) + 1):  # Защита от выхода за границы
-                if col_num > 0:  # Проверяем, что номер колонки положительный
-                    try:
-                        col_letter = get_column_letter(col_num)
-                        column_widths[col_letter] = 6
-                    except ValueError:
-                        # Пропускаем невалидные номера колонок
-                        continue
+        # Безопасная настройка ширины колонок
+        try:
+            worksheet.column_dimensions['A'].width = 5
+            worksheet.column_dimensions['B'].width = 30
 
-        # ИСПРАВЛЕНИЕ: для итоговых колонок
-        if num_columns >= 3:
-            start_final_col = max(3, num_columns - 2)  # Начинаем с правильной колонки
-            for col_num in range(start_final_col, num_columns + 1):
-                if col_num > 0:  # Проверяем, что номер колонки положительный
-                    try:
-                        col_letter = get_column_letter(col_num)
-                        column_widths[col_letter] = 12
-                    except ValueError:
-                        continue
+            for col_num in range(3, num_columns + 1):
+                try:
+                    col_letter = get_column_letter(col_num)
+                    if col_num <= num_columns - 3:
+                        worksheet.column_dimensions[col_letter].width = 6
+                    else:
+                        worksheet.column_dimensions[col_letter].width = 12
+                except ValueError:
+                    continue
+        except:
+            pass
 
-        # Применяем ширину колонок
-        for col_letter, width in column_widths.items():
-            try:
-                worksheet.column_dimensions[col_letter].width = width
-            except:
-                pass
-
-        # Применяем стили к данным (только если есть данные)
-        start_data_row = 7
-        if not df.empty:
-            for row_num in range(start_data_row, start_data_row + len(df)):
-                for col_num in range(1, min(num_columns, 100) + 1):  # Ограничиваем максимальное количество колонок
-                    if col_num > 0:  # Проверяем положительный номер
+        # Безопасное применение стилей к данным
+        try:
+            start_data_row = 7
+            if not df.empty:
+                max_rows = min(start_data_row + len(df), worksheet.max_row)
+                for row_num in range(start_data_row, max_rows + 1):
+                    for col_num in range(1, num_columns + 1):
                         try:
                             cell = worksheet.cell(row=row_num, column=col_num)
                             cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
                             cell.font = Font(name='Times New Roman', size=10)
                             cell.border = thin_border
+
+                            # Специальное выравнивание для колонки ФИО
+                            if col_num == 2:
+                                cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
                         except:
                             continue
+        except:
+            pass
 
-            # Выравнивание для колонки с ФИО
-            for row_num in range(start_data_row, start_data_row + len(df)):
-                try:
-                    cell = worksheet.cell(row=row_num, column=2)
-                    cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
-                except:
-                    continue
-        else:
-            # Если данных нет, применяем стили только к первой строке данных
-            try:
-                for col_num in range(1, min(num_columns, 100) + 1):
-                    if col_num > 0:
-                        cell = worksheet.cell(row=start_data_row, column=col_num)
-                        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-                        cell.font = Font(name='Times New Roman', size=10)
-                        cell.border = thin_border
-            except:
-                pass
-            
 
     def add_report_header(self, worksheet, quarter_name, year, records_count):
         """Добавляем заголовок отчета"""

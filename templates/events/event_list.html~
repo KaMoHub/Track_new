@@ -24,16 +24,16 @@
             <div class="card-body">
                 <form method="get" class="row g-3">
                     <div class="col-md-4">
-    <label for="level" class="form-label">Уровень</label>
-    <select name="level" id="level" class="form-select">
-        <option value="">Все уровни</option>
-        {% for value, label in levels %}
-            <option value="{{ value }}" {% if current_level == value %}selected{% endif %}>
-                {{ label }}
-            </option>
-        {% endfor %}
-    </select>
-</div>
+                        <label for="level" class="form-label">Уровень</label>
+                        <select name="level" id="level" class="form-select">
+                            <option value="">Все уровни</option>
+                            {% for level_choice in levels %}
+                                <option value="{{ level_choice.0 }}" {% if current_level == level_choice.0 %}selected{% endif %}>
+                                    {{ level_choice.1 }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <div class="col-md-4">
                         <label for="search" class="form-label">Поиск</label>
                         <input type="text" name="search" id="search" class="form-control"

@@ -12,6 +12,8 @@ from django.utils import timezone
 from .models import Event, ResultType
 import pandas as pd
 
+from .forms import EventForm  # Импортируем нашу форму
+
 from ..children.models import Teacher
 from ..participation.models import Participation
 
@@ -196,24 +198,30 @@ class EventDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
+
 class EventCreateView(LoginRequiredMixin, CreateView):
     """Создание конкурса"""
     model = Event
+
     template_name = 'events/event_form.html'
-    fields = ['name', 'description', 'level', 'application_deadline', 'result_date', 'is_active', 'sort_order']
+
+    fields = ['name', 'description', 'level', 'application_deadline',
+              'result_date', 'is_active', 'is_offline', 'sort_order']
     success_url = reverse_lazy('events:list')
 
     def form_valid(self, form):
         form.instance.created_by = self.request.user
         messages.success(self.request, 'Конкурс успешно добавлен.')
-        return super().form_valid(form)
 
+        return super().form_valid(form)
 
 class EventUpdateView(LoginRequiredMixin, UpdateView):
     """Редактирование конкурса"""
     model = Event
+
     template_name = 'events/event_form.html'
-    fields = ['name', 'description', 'level', 'application_deadline', 'result_date', 'is_active', 'sort_order']
+    fields = ['name', 'description', 'level', 'application_deadline',
+              'result_date', 'is_active', 'is_offline', 'sort_order']
     success_url = reverse_lazy('events:list')
 
     def form_valid(self, form):

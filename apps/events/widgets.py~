@@ -1,0 +1,24 @@
+# apps/events/widgets.py
+from django import forms
+from django.utils import formats
+
+
+class CustomDateInput(forms.DateInput):
+    input_type = 'text'
+
+    def format_value(self, value):
+        if value is None:
+            return ''
+        if isinstance(value, str):
+            return value
+        return formats.localize_input(value, format='d.m.Y')
+
+    def __init__(self, attrs=None):
+        default_attrs = {
+            'class': 'form-control',
+            'placeholder': 'дд.мм.гггг',
+            'autocomplete': 'off'
+        }
+        if attrs:
+            default_attrs.update(attrs)
+        super().__init__(attrs=default_attrs)

@@ -46,7 +46,7 @@ class Event(models.Model):
         verbose_name='Активен'
     )
     is_offline = models.BooleanField(
-        default=False,
+        default=True,
         verbose_name='Очное'
     )
     sort_order = models.IntegerField(

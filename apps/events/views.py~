@@ -12,6 +12,8 @@ from django.utils import timezone
 from .models import Event, ResultType
 import pandas as pd
 
+from .forms import EventForm  # Импортируем нашу форму
+
 from ..children.models import Teacher
 from ..participation.models import Participation
 
@@ -83,49 +85,36 @@ class EventListView(LoginRequiredMixin, ListView):
         return queryset
 
     # apps/events/views.py (исправляем get_context_data в EventListView)
+    # apps/events/views.py (исправляем get_context_data в EventListView)
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
 
-        # Для фильтров - только доступные данные
+        # ВСЕГДА используем полный список уровней из модели
+        context['levels'] = Event.LEVEL_CHOICES
+        context['current_level'] = self.request.GET.get('level', '')
+        context['current_search'] = self.request.GET.get('search', '')
+        context['current_sort'] = self.request.GET.get('sort', 'name')
+        context['current_order'] = self.request.GET.get('order', 'asc')
+
+        # Для фильтров - только доступные данные (опционально)
         if hasattr(user, 'role'):
             if user.role == 'teacher':
                 try:
                     teacher = Teacher.objects.get(user=user)
-                    # Только конкурсы этого педагога
+                    # Только конкурсы этого педагога (для events_list)
                     context['events_list'] = Event.objects.filter(
                         participation__enrollment__teacher=teacher
                     ).distinct().filter(is_active=True).order_by('name')
-                    # Получаем уровни как кортежи (value, label)
-                    teacher_levels = Event.objects.filter(
-                        participation__enrollment__teacher=teacher
-                    ).distinct().values_list('level', flat=True)
-                    # Преобразуем в формат для шаблона
-                    context['levels'] = [
-                        (level, dict(Event.LEVEL_CHOICES).get(level, level))
-                        for level in teacher_levels
-                    ]
                 except (Teacher.DoesNotExist, Exception):
                     context['events_list'] = Event.objects.none()
-                    context['levels'] = []
             elif user.role in ['methodist', 'admin']:
                 # Для методистов и админов - все данные
                 context['events_list'] = Event.objects.filter(is_active=True).order_by('name')
-                # Передаем все уровни как кортежи
-                context['levels'] = Event.LEVEL_CHOICES
             else:
                 context['events_list'] = Event.objects.none()
-                context['levels'] = []
         else:
             context['events_list'] = Event.objects.none()
-            context['levels'] = []
-
-        # Текущие значения фильтров
-        context['current_level'] = self.request.GET.get('level', '')
-
-        # Текущие значения сортировки
-        context['current_sort'] = self.request.GET.get('sort', 'name')
-        context['current_order'] = self.request.GET.get('order', 'asc')
 
         return context
 
@@ -209,24 +198,28 @@ class EventDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
+
 class EventCreateView(LoginRequiredMixin, CreateView):
     """Создание конкурса"""
     model = Event
+
     template_name = 'events/event_form.html'
-    fields = ['name', 'description', 'level', 'application_deadline', 'result_date', 'is_active', 'sort_order']
+
+    fields = ['name', 'description', 'level', 'application_deadline',
+              'result_date', 'is_active', 'is_offline', 'sort_order']
     success_url = reverse_lazy('events:list')
 
     def form_valid(self, form):
         form.instance.created_by = self.request.user
         messages.success(self.request, 'Конкурс успешно добавлен.')
-        return super().form_valid(form)
 
+        return super().form_valid(form)
 
 class EventUpdateView(LoginRequiredMixin, UpdateView):
     """Редактирование конкурса"""
     model = Event
+
     template_name = 'events/event_form.html'
-    fields = ['name', 'description', 'level', 'application_deadline', 'result_date', 'is_active', 'sort_order']
     success_url = reverse_lazy('events:list')
 
     def form_valid(self, form):

@@ -17,7 +17,6 @@
     </a>
 {% endblock %}
 
-<!-- templates/events/event_detail.html (обновляем секцию участников) -->
 {% block content %}
 <div class="row">
     <div class="col-md-8">
@@ -38,6 +37,16 @@
                     <tr>
                         <th>Уровень:</th>
                         <td>{{ event.get_level_display }}</td>
+                    </tr>
+                    <tr>
+                        <th>Формат проведения:</th>
+                        <td>
+                            {% if event.is_offline %}
+                                <span class="badge bg-success">Очный</span>
+                            {% else %}
+                                <span class="badge bg-info">Заочный</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     <tr>
                         <th>Срок подачи заявок:</th>
@@ -110,84 +119,83 @@
                                     <th>Действия</th>
                                 </tr>
                             </thead>
-                            <!-- templates/events/event_detail.html (обновляем секцию действий в таблице участников) -->
-<tbody>
-    {% for participant in participants %}
-        <tr>
-            <td>{{ forloop.counter }}</td>
-            <td>
-                <strong>{{ participant.child.fio }}</strong>
-            </td>
-            <td>{{ participant.enrollment.studio.name }}</td>
-            <td>{{ participant.enrollment.teacher }}</td>
-            <td>
-                {% if participant.result_type %}
-                    <span class="badge bg-success">{{ participant.result_type.name }}</span>
-                {% elif participant.custom_result %}
-                    <span class="badge bg-warning">{{ participant.custom_result }}</span>
-                {% else %}
-                    <span class="badge bg-secondary">Без результата</span>
-                {% endif %}
-            </td>
-            <td>{{ participant.report_date|date:"d.m.Y" }}</td>
-            <td>
-                <div class="btn-group" role="group">
-                    <!-- Просмотр карточки участия -->
-                    <a href="{% url 'participation:detail' participant.pk %}"
-                       class="btn btn-sm btn-outline-info"
-                       title="Просмотр участия">
-                        <i class="bi bi-eye"></i>
-                    </a>
-
-                    <!-- Иконки просмотра файлов -->
-                    {% with files=participant.uploadedfile_set.all %}
-                        {% if files %}
-                            {% if files.count == 1 %}
-                                <!-- Если один файл - показываем кнопку просмотра -->
-                                <a href="{% url 'participation:view_file' files.first.pk %}"
-                                   class="btn btn-sm btn-outline-primary"
-                                   title="Просмотр файла: {{ files.first.original_name }}"
-                                   target="_blank">
-                                    <i class="bi bi-file-earmark-text"></i>
-                                </a>
-                            {% elif files.count > 1 %}
-                                <!-- Если несколько файлов - показываем кнопку с dropdown -->
-                                <div class="btn-group" role="group">
-                                    <button type="button"
-                                            class="btn btn-sm btn-outline-primary dropdown-toggle"
-                                            data-bs-toggle="dropdown"
-                                            aria-expanded="false"
-                                            title="Просмотр файлов ({{ files.count }})">
-                                        <i class="bi bi-file-earmark-text"></i> {{ files.count }}
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        {% for file in files %}
-                                            <li>
-                                                <a class="dropdown-item"
-                                                   href="{% url 'participation:view_file' file.pk %}"
-                                                   target="_blank">
-                                                    <i class="bi bi-file-earmark-text"></i>
-                                                    {{ file.original_name }}
+                            <tbody>
+                                {% for participant in participants %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td>
+                                            <strong>{{ participant.child.fio }}</strong>
+                                        </td>
+                                        <td>{{ participant.enrollment.studio.name }}</td>
+                                        <td>{{ participant.enrollment.teacher }}</td>
+                                        <td>
+                                            {% if participant.result_type %}
+                                                <span class="badge bg-success">{{ participant.result_type.name }}</span>
+                                            {% elif participant.custom_result %}
+                                                <span class="badge bg-warning">{{ participant.custom_result }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Без результата</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ participant.report_date|date:"d.m.Y" }}</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <!-- Просмотр карточки участия -->
+                                                <a href="{% url 'participation:detail' participant.pk %}"
+                                                   class="btn btn-sm btn-outline-info"
+                                                   title="Просмотр участия">
+                                                    <i class="bi bi-eye"></i>
                                                 </a>
-                                            </li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                            {% endif %}
-                        {% else %}
-                            <!-- Если нет файлов - показываем неактивную кнопку -->
-                            <button class="btn btn-sm btn-outline-secondary"
-                                    disabled
-                                    title="Нет файлов">
-                                <i class="bi bi-file-earmark-text"></i>
-                            </button>
-                        {% endif %}
-                    {% endwith %}
-                </div>
-            </td>
-        </tr>
-    {% endfor %}
-</tbody>
+
+                                                <!-- Иконки просмотра файлов -->
+                                                {% with files=participant.uploadedfile_set.all %}
+                                                    {% if files %}
+                                                        {% if files.count == 1 %}
+                                                            <!-- Если один файл - показываем кнопку просмотра -->
+                                                            <a href="{% url 'participation:view_file' files.first.pk %}"
+                                                               class="btn btn-sm btn-outline-primary"
+                                                               title="Просмотр файла: {{ files.first.original_name }}"
+                                                               target="_blank">
+                                                                <i class="bi bi-file-earmark-text"></i>
+                                                            </a>
+                                                        {% elif files.count > 1 %}
+                                                            <!-- Если несколько файлов - показываем кнопку с dropdown -->
+                                                            <div class="btn-group" role="group">
+                                                                <button type="button"
+                                                                        class="btn btn-sm btn-outline-primary dropdown-toggle"
+                                                                        data-bs-toggle="dropdown"
+                                                                        aria-expanded="false"
+                                                                        title="Просмотр файлов ({{ files.count }})">
+                                                                    <i class="bi bi-file-earmark-text"></i> {{ files.count }}
+                                                                </button>
+                                                                <ul class="dropdown-menu">
+                                                                    {% for file in files %}
+                                                                        <li>
+                                                                            <a class="dropdown-item"
+                                                                               href="{% url 'participation:view_file' file.pk %}"
+                                                                               target="_blank">
+                                                                                <i class="bi bi-file-earmark-text"></i>
+                                                                                {{ file.original_name }}
+                                                                            </a>
+                                                                        </li>
+                                                                    {% endfor %}
+                                                                </ul>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <!-- Если нет файлов - показываем неактивную кнопку -->
+                                                        <button class="btn btn-sm btn-outline-secondary"
+                                                                disabled
+                                                                title="Нет файлов">
+                                                            <i class="bi bi-file-earmark-text"></i>
+                                                        </button>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
                         </table>
                     </div>
                 {% else %}

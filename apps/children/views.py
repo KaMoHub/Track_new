@@ -1419,6 +1419,9 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
 
     def get_participation_form(self, participation):
         """Определяем форму участия (можно доработать логику)"""
+        if participation.event and hasattr(participation.event, 'is_offline'):
+            return 'Очная' if participation.event.is_offline else 'Дистанционная'
+
         # Здесь можно добавить логику определения формы участия
         # Например, по названию события или другим признакам
         event_name = participation.event.name.lower() if participation.event else ''
@@ -2041,7 +2044,7 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
                             continue
         except:
             pass
-        
+
 
     def add_report_header(self, worksheet, quarter_name, year, records_count):
         """Добавляем заголовок отчета"""
