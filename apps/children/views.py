@@ -1720,10 +1720,10 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
                 # Увеличиваем счетчик
                 if result_type == 's':  # Свидетельство
                     report_data[teacher_name]['months'][month_key][event_level]['s'] += 1
-                else:  # Результат
+                elif result_type == 'r':  # Результат
                     report_data[teacher_name]['months'][month_key][event_level]['r'] += 1
 
-        # Создаем правильную структуру данных для DataFrame
+        # # Создаем правильную структуру данных для DataFrame
         rows = []
         teacher_counter = 1
 
@@ -1761,11 +1761,14 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
             correct_columns_order = ['№', 'ФИО педагога']
 
             # Добавляем колонки в правильном порядке: месяц → уровень → с/р
-            for month_num in months:
-                month_name = month_names[month_num]
-                for level in levels:
+
+            for level in levels:
+                for month_num in months:
+                    month_name = month_names[month_num]
+
                     correct_columns_order.append(f'{month_name}_{level}_s')
                     correct_columns_order.append(f'{month_name}_{level}_r')
+
 
             correct_columns_order.extend(['Сертификаты', 'Результаты', 'Итого'])
 
@@ -1787,7 +1790,7 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
 
         with pd.ExcelWriter(response, engine='openpyxl') as writer:
             # Основной лист с данными - начинаем с 7 строки (после шапки)
-            df.to_excel(writer, sheet_name='Достижения за квартал', index=False, startrow=6)
+            df.to_excel(writer, sheet_name='Достижения за квартал', index=False, startrow=6, header=False)
 
             # Получаем workbook для форматирования
             workbook = writer.book
@@ -1813,16 +1816,21 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
         """Определяем тип результата: 's' (свидетельство) или 'r' (результат)"""
         if participation.result_type:
             result_name = participation.result_type.name.lower()
-            certificate_keywords = ['сертификат', 'свидетельство', 'участие', 'certificate', 'participation']
+            certificate_keywords = ['сертификат', 'Сертификат']
 
             if any(keyword in result_name for keyword in certificate_keywords):
                 return 's'
 
         if participation.custom_result:
             custom_result = participation.custom_result.lower()
-            certificate_keywords = ['сертификат', 'свидетельство', 'участие']
-            if any(keyword in custom_result for keyword in certificate_keywords):
+            # certificate_keywords = ['сертификат', 'свидетельство', 'участие']
+            # if any(keyword in custom_result for keyword in certificate_keywords):
+            #     return 's'
+            if custom_result:
                 return 's'
+
+        if not participation.result_type and not participation.custom_result:
+            return ''
 
         return 'r'
 
@@ -1925,15 +1933,54 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
                 worksheet[f'{col_letter}6'].value = 'р'
                 current_col += 1
 
-        # Применяем стили ко всем ячейкам шапки
+        # ВАЖНОЕ ИСПРАВЛЕНИЕ: применяем стили ко ВСЕМ ячейкам шапки
         for row in range(4, 7):
             for col in range(1, num_columns + 1):
                 cell = worksheet.cell(row=row, column=col)
+
+                # Всегда применяем шрифт, выравнивание и границы
+                cell.font = header_font
+                cell.alignment = header_alignment
+                cell.border = thin_border
+
+                # Заливку применяем только к ячейкам с значениями
                 if cell.value is not None:
-                    cell.font = header_font
-                    cell.alignment = header_alignment
                     cell.fill = header_fill
-                    cell.border = thin_border
+                else:
+                    # Для пустых ячеек убираем заливку
+                    cell.fill = PatternFill(fill_type=None)
+
+        # ДОПОЛНИТЕЛЬНО: Убедимся, что объединенные ячейки имеют правильные границы
+        # Для объединенных ячеек нужно применить стили к первой ячейке в диапазоне
+        merged_ranges = [
+            'A4:A6', 'B4:B6',  # Основные колонки
+            f'{get_column_letter(3)}4:{get_column_letter(3 + len(levels) * 6 - 1)}4',  # Уровни
+            f'{get_column_letter(current_col)}4:{get_column_letter(current_col + 2)}4'  # Итог
+        ]
+
+        # Добавляем диапазоны месяцев
+        current_col_temp = 3
+        for level in levels:
+            for month_num in months:
+                start_col = get_column_letter(current_col_temp)
+                end_col = get_column_letter(current_col_temp + 1)
+                merged_ranges.append(f'{start_col}5:{end_col}5')
+                current_col_temp += 2
+
+        # Добавляем итоговые колонки
+        for i in range(3):
+            col_letter = get_column_letter(current_col + i)
+            merged_ranges.append(f'{col_letter}5:{col_letter}6')
+
+        # Применяем стили к объединенным ячейкам
+        for range_str in merged_ranges:
+            try:
+                cell = worksheet[range_str.split(':')[0]]  # Первая ячейка диапазона
+                cell.border = thin_border
+                if cell.value is not None:
+                    cell.fill = header_fill
+            except:
+                pass
 
     def format_quarter_worksheet(self, worksheet, df, months, month_names, levels, level_names):
         """Форматируем внешний вид таблицы для квартального отчета"""
@@ -1945,33 +1992,56 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
             top=Side(style='thin'), bottom=Side(style='thin')
         )
 
-        num_columns = len(df.columns) if not df.empty else 1
+        # Безопасное определение количества колонок
+        try:
+            if not df.empty:
+                num_columns = len(df.columns)
+            else:
+                num_columns = 2 + (len(levels) * len(months) * 2) + 3
+        except:
+            num_columns = 50  # Значение по умолчанию
 
-        # Настраиваем ширину колонок
-        column_widths = {'A': 5, 'B': 30}
-        for col_num in range(3, num_columns - 2):
-            col_letter = get_column_letter(col_num)
-            column_widths[col_letter] = 6
-        for col_num in range(num_columns - 2, num_columns + 1):
-            col_letter = get_column_letter(col_num)
-            column_widths[col_letter] = 12
+        # Ограничиваем максимальное количество колонок
+        num_columns = min(num_columns, 100)
 
-        for col_letter, width in column_widths.items():
-            worksheet.column_dimensions[col_letter].width = width
+        # Безопасная настройка ширины колонок
+        try:
+            worksheet.column_dimensions['A'].width = 5
+            worksheet.column_dimensions['B'].width = 30
 
-        # Применяем стили к данным
-        start_data_row = 7
-        for row_num in range(start_data_row, start_data_row + len(df)):
-            for col_num in range(1, num_columns + 1):
-                cell = worksheet.cell(row=row_num, column=col_num)
-                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-                cell.font = Font(name='Times New Roman', size=10)
-                cell.border = thin_border
+            for col_num in range(3, num_columns + 1):
+                try:
+                    col_letter = get_column_letter(col_num)
+                    if col_num <= num_columns - 3:
+                        worksheet.column_dimensions[col_letter].width = 6
+                    else:
+                        worksheet.column_dimensions[col_letter].width = 12
+                except ValueError:
+                    continue
+        except:
+            pass
 
-        # Выравнивание для колонки с ФИО
-        for row_num in range(start_data_row, start_data_row + len(df)):
-            cell = worksheet.cell(row=row_num, column=2)
-            cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+        # Безопасное применение стилей к данным
+        try:
+            start_data_row = 7
+            if not df.empty:
+                max_rows = min(start_data_row + len(df), worksheet.max_row)
+                for row_num in range(start_data_row, max_rows + 1):
+                    for col_num in range(1, num_columns + 1):
+                        try:
+                            cell = worksheet.cell(row=row_num, column=col_num)
+                            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                            cell.font = Font(name='Times New Roman', size=10)
+                            cell.border = thin_border
+
+                            # Специальное выравнивание для колонки ФИО
+                            if col_num == 2:
+                                cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+                        except:
+                            continue
+        except:
+            pass
+        
 
     def add_report_header(self, worksheet, quarter_name, year, records_count):
         """Добавляем заголовок отчета"""
@@ -1983,17 +2053,18 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
                 cell = worksheet.cell(row=row, column=col)
                 cell.value = None
 
-        worksheet.merge_cells('A1:Z1')
+        worksheet.merge_cells('A1:BA1')
         worksheet['A1'].value = 'Достижения детей'
         worksheet['A1'].font = Font(size=14, bold=True)
         worksheet['A1'].alignment = Alignment(horizontal='center')
 
-        worksheet.merge_cells('A2:Z2')
+        worksheet.merge_cells('A2:BA2')
         worksheet['A2'].value = f'за {quarter_name} {year} год'
         worksheet['A2'].font = Font(size=12, bold=True)
         worksheet['A2'].alignment = Alignment(horizontal='center')
 
-        worksheet.merge_cells('A3:Z3')
+        worksheet.merge_cells('A3:BA3')
         worksheet['A3'].value = f'Всего педагогов: {records_count}'
         worksheet['A3'].font = Font(size=10)
         worksheet['A3'].alignment = Alignment(horizontal='center')
+

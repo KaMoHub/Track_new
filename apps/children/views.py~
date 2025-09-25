@@ -1665,7 +1665,6 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
             9: 'сентябрь', 10: 'октябрь', 11: 'ноябрь', 12: 'декабрь'
         }
 
-
         # Получаем данные участий за указанный квартал
         from apps.participation.models import Participation
 
@@ -1680,15 +1679,16 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
             'result_type'
         ).order_by('child__fio', 'report_date')
 
-        # Создаем структуру данных для отчета
+        # СОЗДАЕМ СТРУКТУРУ ДАННЫХ report_data - ЭТОГО НЕ БЫЛО В ВАШЕМ КОДЕ
         report_data = {}
 
         for participation in participations:
-            child_fio = participation.child.fio
-            teacher_name = str(
-                participation.enrollment.teacher) if participation.enrollment and participation.enrollment.teacher else 'Не указан'
+            # Получаем имя педагога
+            teacher_name = 'Не указан'
+            if participation.enrollment and participation.enrollment.teacher:
+                teacher_name = str(participation.enrollment.teacher)
 
-            # Используем педагога как ключ группировки
+            # Создаем запись для педагога, если ее нет
             if teacher_name not in report_data:
                 report_data[teacher_name] = {
                     'teacher': teacher_name,
@@ -1700,33 +1700,30 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
                 month = participation.report_date.month
                 month_key = f"{month:02d}"
 
-                # Инициализируем данные для месяца, если их нет
+                # Создаем запись для месяца, если ее нет
                 if month_key not in report_data[teacher_name]['months']:
                     report_data[teacher_name]['months'][month_key] = {
                         level: {'s': 0, 'r': 0} for level in levels
                     }
 
                 # Определяем уровень события
-                event_level = participation.event.level if participation.event and participation.event.level else 'centrovskiy'
+                event_level = 'centrovskiy'  # По умолчанию
+                if participation.event and participation.event.level:
+                    event_level = participation.event.level
+
                 if event_level not in levels:
                     event_level = 'centrovskiy'  # По умолчанию
 
-                # Определяем тип результата (свидетельство или результат)
+                # Определяем тип результата
                 result_type = self.get_result_type(participation)
 
+                # Увеличиваем счетчик
                 if result_type == 's':  # Свидетельство
                     report_data[teacher_name]['months'][month_key][event_level]['s'] += 1
-                else:  # Результат (не свидетельство)
+                elif result_type == 'r':  # Результат
                     report_data[teacher_name]['months'][month_key][event_level]['r'] += 1
 
-        # ДЕБАГ: Выводим информацию о данных
-        print(f"Найдено participations: {participations.count()}")
-        print(f"Создано report_data записей: {len(report_data)}")
-        for teacher, data in report_data.items():
-            print(f"Педагог: {teacher}, месяцев: {len(data['months'])}")
-
-
-        # Создаем правильную структуру данных для DataFrame
+        # # Создаем правильную структуру данных для DataFrame
         rows = []
         teacher_counter = 1
 
@@ -1740,13 +1737,14 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
             # Для каждого месяца и уровня добавляем данные в правильном порядке
             for month_num in months:
                 month_key = f"{month_num:02d}"
+                # Получаем данные для месяца или создаем пустые
                 month_data = data['months'].get(month_key, {level: {'s': 0, 'r': 0} for level in levels})
 
                 for level in levels:
                     # Свидетельства (с)
-                    base_row[f'{month_names[month_num]}_{level}_s'] = month_data[level]['s']
+                    base_row[f'{month_names[month_num]}_{level}_s'] = month_data.get(level, {'s': 0, 'r': 0})['s']
                     # Результаты (р)
-                    base_row[f'{month_names[month_num]}_{level}_r'] = month_data[level]['r']
+                    base_row[f'{month_names[month_num]}_{level}_r'] = month_data.get(level, {'s': 0, 'r': 0})['r']
 
             # Добавляем итоги
             base_row['Сертификаты'] = self.calculate_certificates(data, months, levels)
@@ -1763,11 +1761,14 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
             correct_columns_order = ['№', 'ФИО педагога']
 
             # Добавляем колонки в правильном порядке: месяц → уровень → с/р
-            for month_num in months:
-                month_name = month_names[month_num]
-                for level in levels:
+
+            for level in levels:
+                for month_num in months:
+                    month_name = month_names[month_num]
+
                     correct_columns_order.append(f'{month_name}_{level}_s')
                     correct_columns_order.append(f'{month_name}_{level}_r')
+
 
             correct_columns_order.extend(['Сертификаты', 'Результаты', 'Итого'])
 
@@ -1789,15 +1790,18 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
 
         with pd.ExcelWriter(response, engine='openpyxl') as writer:
             # Основной лист с данными - начинаем с 7 строки (после шапки)
-            df.to_excel(writer, sheet_name='Достижения за квартал', index=False, startrow=6)
+            df.to_excel(writer, sheet_name='Достижения за квартал', index=False, startrow=6, header=False)
 
             # Получаем workbook для форматирования
             workbook = writer.book
             worksheet = writer.sheets['Достижения за квартал']
 
-            # Удаляем лишние строки (7 и 8), которые могли появиться из-за неправильного startrow
-            if worksheet.max_row > 6 + len(df):
-                worksheet.delete_rows(7 + len(df), worksheet.max_row - (6 + len(df)))
+            # Удаляем лишние строки после данных
+            total_rows = len(df) + 7  # 6 строк шапки + заголовок данных
+            if worksheet.max_row > total_rows:
+                # Удаляем все строки после наших данных
+                for row_num in range(worksheet.max_row, total_rows, -1):
+                    worksheet.delete_rows(row_num)
 
             # Добавляем заголовок и создаем сложную шапку
             self.add_report_header(worksheet, quarter_name, year, len(rows))
@@ -1807,6 +1811,50 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
             self.format_quarter_worksheet(worksheet, df, months, month_names, levels, level_names)
 
         return response
+
+    def get_result_type(self, participation):
+        """Определяем тип результата: 's' (свидетельство) или 'r' (результат)"""
+        if participation.result_type:
+            result_name = participation.result_type.name.lower()
+            certificate_keywords = ['сертификат', 'Сертификат']
+
+            if any(keyword in result_name for keyword in certificate_keywords):
+                return 's'
+
+        if participation.custom_result:
+            custom_result = participation.custom_result.lower()
+            # certificate_keywords = ['сертификат', 'свидетельство', 'участие']
+            # if any(keyword in custom_result for keyword in certificate_keywords):
+            #     return 's'
+            if custom_result:
+                return 's'
+
+        if not participation.result_type and not participation.custom_result:
+            return ''
+
+        return 'r'
+
+    def calculate_certificates(self, data, months, levels):
+        """Подсчитываем общее количество сертификатов"""
+        total = 0
+        for month_num in months:
+            month_key = f"{month_num:02d}"
+            month_data = data['months'].get(month_key, {})
+            for level in levels:
+                level_data = month_data.get(level, {'s': 0, 'r': 0})
+                total += level_data['s']
+        return total
+
+    def calculate_results(self, data, months, levels):
+        """Подсчитываем общее количество результатов"""
+        total = 0
+        for month_num in months:
+            month_key = f"{month_num:02d}"
+            month_data = data['months'].get(month_key, {})
+            for level in levels:
+                level_data = month_data.get(level, {'s': 0, 'r': 0})
+                total += level_data['r']
+        return total
 
     def create_complex_header(self, worksheet, months, month_names, levels, level_names, num_columns):
         """Создает сложную шапку таблицы согласно требованиям"""
@@ -1830,38 +1878,34 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
                 cell.border = Border()
 
         # Строка 4: Основные разделы
-        # Колонка A: "№" (объединение строк 4-6)
         worksheet.merge_cells('A4:A6')
         worksheet['A4'].value = '№'
-
-        # Колонка B: "ФИО педагога" (объединение строк 4-6)
         worksheet.merge_cells('B4:B6')
         worksheet['B4'].value = 'ФИО педагога'
 
-        # Текущая колонка для данных (начинаем с C - 3)
+        # Текущая колонка для данных
         current_col = 3
 
-        # Для каждого уровня создаем объединенную ячейку на 6 колонок (3 месяца × 2 колонки)
+        # Для каждого уровня создаем объединенную ячейку на 6 колонок
         for level in levels:
             level_name = level_names[level]
             start_col = get_column_letter(current_col)
-            end_col = get_column_letter(current_col + 5)  # 6 колонок (3×2)
+            end_col = get_column_letter(current_col + 5)
             worksheet.merge_cells(f'{start_col}4:{end_col}4')
             cell = worksheet[f'{start_col}4']
             cell.value = level_name
             current_col += 6
 
-        # Итоговые колонки (объединение по 3 колонки)
+        # Итоговые колонки
         start_col = get_column_letter(current_col)
         end_col = get_column_letter(current_col + 2)
         worksheet.merge_cells(f'{start_col}4:{end_col}4')
         worksheet[f'{start_col}4'].value = 'Итог'
 
-        # Строка 5: Месяцы для каждого уровня (объединение по 2 колонки)
+        # Строка 5: Месяцы для каждого уровня
         current_col = 3
-
         for level in levels:
-            for month_num in months:  # Теперь правильный порядок месяцев
+            for month_num in months:
                 month_name = month_names[month_num]
                 start_col = get_column_letter(current_col)
                 end_col = get_column_letter(current_col + 1)
@@ -1870,114 +1914,179 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
                 cell.value = month_name
                 current_col += 2
 
-        # Итоговые колонки (каждая по 1 колонке, объединение строк 5-6)
+        # Итоговые колонки
         итоговые_заголовки = ['Сертификаты', 'Результаты', 'Итого']
         for i, header in enumerate(итоговые_заголовки):
             col_letter = get_column_letter(current_col + i)
             worksheet.merge_cells(f'{col_letter}5:{col_letter}6')
             worksheet[f'{col_letter}5'].value = header
 
-        # Строка 6: Типы данных для каждого месяца и уровня
+        # Строка 6: Типы данных
         current_col = 3
-
         for level in levels:
-            for month_num in months:  # Правильный порядок месяцев
-                # Колонка "с" (свидетельства)
+            for month_num in months:
                 col_letter = get_column_letter(current_col)
                 worksheet[f'{col_letter}6'].value = 'с'
                 current_col += 1
 
-                # Колонка "р" (результаты)
                 col_letter = get_column_letter(current_col)
                 worksheet[f'{col_letter}6'].value = 'р'
                 current_col += 1
 
-        # Применяем стили ко всем ячейкам шапки (строки 4-6)
+        # ВАЖНОЕ ИСПРАВЛЕНИЕ: применяем стили ко ВСЕМ ячейкам шапки
         for row in range(4, 7):
             for col in range(1, num_columns + 1):
                 cell = worksheet.cell(row=row, column=col)
-                if cell.value is not None:  # Только для ячеек с данными
-                    cell.font = header_font
-                    cell.alignment = header_alignment
+
+                # Всегда применяем шрифт, выравнивание и границы
+                cell.font = header_font
+                cell.alignment = header_alignment
+                cell.border = thin_border
+
+                # Заливку применяем только к ячейкам с значениями
+                if cell.value is not None:
                     cell.fill = header_fill
-                    cell.border = thin_border
+                else:
+                    # Для пустых ячеек убираем заливку
+                    cell.fill = PatternFill(fill_type=None)
+
+        # ДОПОЛНИТЕЛЬНО: Убедимся, что объединенные ячейки имеют правильные границы
+        # Для объединенных ячеек нужно применить стили к первой ячейке в диапазоне
+        merged_ranges = [
+            'A4:A6', 'B4:B6',  # Основные колонки
+            f'{get_column_letter(3)}4:{get_column_letter(3 + len(levels) * 6 - 1)}4',  # Уровни
+            f'{get_column_letter(current_col)}4:{get_column_letter(current_col + 2)}4'  # Итог
+        ]
+
+        # Добавляем диапазоны месяцев
+        current_col_temp = 3
+        for level in levels:
+            for month_num in months:
+                start_col = get_column_letter(current_col_temp)
+                end_col = get_column_letter(current_col_temp + 1)
+                merged_ranges.append(f'{start_col}5:{end_col}5')
+                current_col_temp += 2
+
+        # Добавляем итоговые колонки
+        for i in range(3):
+            col_letter = get_column_letter(current_col + i)
+            merged_ranges.append(f'{col_letter}5:{col_letter}6')
+
+        # Применяем стили к объединенным ячейкам
+        for range_str in merged_ranges:
+            try:
+                cell = worksheet[range_str.split(':')[0]]  # Первая ячейка диапазона
+                cell.border = thin_border
+                if cell.value is not None:
+                    cell.fill = header_fill
+            except:
+                pass
 
     def format_quarter_worksheet(self, worksheet, df, months, month_names, levels, level_names):
         """Форматируем внешний вид таблицы для квартального отчета"""
         from openpyxl.styles import Font, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
 
-        # Стиль для границ
         thin_border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
         )
 
-        # Определяем количество колонок
-        num_columns = len(df.columns) if not df.empty else 1
+        # ИСПРАВЛЕНИЕ: правильно рассчитываем количество колонок
+        if not df.empty:
+            num_columns = len(df.columns)
+        else:
+            # Рассчитываем ожидаемое количество колонок на основе структуры
+            num_columns = 2 + (len(levels) * len(months) * 2) + 3  # №, ФИО + (уровни × месяцы × 2) + итоги
 
         # Настраиваем ширину колонок
-        column_widths = {
-            'A': 5,  # №
-            'B': 30,  # ФИО педагога
-        }
+        column_widths = {'A': 5, 'B': 30}
 
-        # Ширина для месячных колонок
-        for col_num in range(3, num_columns - 2):
-            col_letter = get_column_letter(col_num)
-            column_widths[col_letter] = 6
+        # ИСПРАВЛЕНИЕ: проверяем корректность номеров колонок перед использованием
+        if num_columns >= 3:
+            for col_num in range(3, min(num_columns - 2, num_columns) + 1):  # Защита от выхода за границы
+                if col_num > 0:  # Проверяем, что номер колонки положительный
+                    try:
+                        col_letter = get_column_letter(col_num)
+                        column_widths[col_letter] = 6
+                    except ValueError:
+                        # Пропускаем невалидные номера колонок
+                        continue
 
-        # Ширина для итоговых колонок
-        for col_num in range(num_columns - 2, num_columns + 1):
-            col_letter = get_column_letter(col_num)
-            column_widths[col_letter] = 12
+        # ИСПРАВЛЕНИЕ: для итоговых колонок
+        if num_columns >= 3:
+            start_final_col = max(3, num_columns - 2)  # Начинаем с правильной колонки
+            for col_num in range(start_final_col, num_columns + 1):
+                if col_num > 0:  # Проверяем, что номер колонки положительный
+                    try:
+                        col_letter = get_column_letter(col_num)
+                        column_widths[col_letter] = 12
+                    except ValueError:
+                        continue
 
+        # Применяем ширину колонок
         for col_letter, width in column_widths.items():
-            worksheet.column_dimensions[col_letter].width = width
+            try:
+                worksheet.column_dimensions[col_letter].width = width
+            except:
+                pass
 
-        # Применяем стили к данным (начиная с строки 7)
+        # Применяем стили к данным (только если есть данные)
         start_data_row = 7
-        for row_num in range(start_data_row, start_data_row + len(df)):
-            for col_num in range(1, num_columns + 1):
-                cell = worksheet.cell(row=row_num, column=col_num)
-                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-                cell.font = Font(name='Times New Roman', size=10)
-                cell.border = thin_border
+        if not df.empty:
+            for row_num in range(start_data_row, start_data_row + len(df)):
+                for col_num in range(1, min(num_columns, 100) + 1):  # Ограничиваем максимальное количество колонок
+                    if col_num > 0:  # Проверяем положительный номер
+                        try:
+                            cell = worksheet.cell(row=row_num, column=col_num)
+                            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                            cell.font = Font(name='Times New Roman', size=10)
+                            cell.border = thin_border
+                        except:
+                            continue
 
-        # Выравнивание для колонки с ФИО (левое выравнивание)
-        for row_num in range(start_data_row, start_data_row + len(df)):
-            cell = worksheet.cell(row=row_num, column=2)  # Колонка B
-            cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+            # Выравнивание для колонки с ФИО
+            for row_num in range(start_data_row, start_data_row + len(df)):
+                try:
+                    cell = worksheet.cell(row=row_num, column=2)
+                    cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+                except:
+                    continue
+        else:
+            # Если данных нет, применяем стили только к первой строке данных
+            try:
+                for col_num in range(1, min(num_columns, 100) + 1):
+                    if col_num > 0:
+                        cell = worksheet.cell(row=start_data_row, column=col_num)
+                        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                        cell.font = Font(name='Times New Roman', size=10)
+                        cell.border = thin_border
+            except:
+                pass
+            
 
     def add_report_header(self, worksheet, quarter_name, year, records_count):
         """Добавляем заголовок отчета"""
         from openpyxl.styles import Font, Alignment
 
-        # Очищаем возможные старые данные в строках 1-3
+        # Очищаем старые данные
         for row in range(1, 4):
-            for col in range(1, 50):  # Достаточно большое число колонок
+            for col in range(1, 50):
                 cell = worksheet.cell(row=row, column=col)
                 cell.value = None
 
-        # Заголовок отчета
-        worksheet.merge_cells('A1:Z1')
-        title_cell = worksheet['A1']
-        title_cell.value = 'Достижения детей'
-        title_cell.font = Font(size=14, bold=True)
-        title_cell.alignment = Alignment(horizontal='center')
+        worksheet.merge_cells('A1:BA1')
+        worksheet['A1'].value = 'Достижения детей'
+        worksheet['A1'].font = Font(size=14, bold=True)
+        worksheet['A1'].alignment = Alignment(horizontal='center')
 
-        # Период отчета
-        worksheet.merge_cells('A2:Z2')
-        period_cell = worksheet['A2']
-        period_cell.value = f'за {quarter_name} {year} год'
-        period_cell.font = Font(size=12, bold=True)
-        period_cell.alignment = Alignment(horizontal='center')
+        worksheet.merge_cells('A2:BA2')
+        worksheet['A2'].value = f'за {quarter_name} {year} год'
+        worksheet['A2'].font = Font(size=12, bold=True)
+        worksheet['A2'].alignment = Alignment(horizontal='center')
 
-        # Количество записей
-        worksheet.merge_cells('A3:Z3')
-        count_cell = worksheet['A3']
-        count_cell.value = f'Всего педагогов: {records_count}'
-        count_cell.font = Font(size=10)
-        count_cell.alignment = Alignment(horizontal='center')
+        worksheet.merge_cells('A3:BA3')
+        worksheet['A3'].value = f'Всего педагогов: {records_count}'
+        worksheet['A3'].font = Font(size=10)
+        worksheet['A3'].alignment = Alignment(horizontal='center')
+
