@@ -147,6 +147,42 @@
             <div class="card-body">
                 <p class="card-text">{{ report.description }}</p>
 
+                <!-- В разделе с формами внутри card-body добавьте: -->
+{% if report.id == 1 %}
+<!-- Форма выбора месяца и топа для отчета 1 -->
+<div class="mb-3">
+    <label for="month_{{ report.id }}" class="form-label small">Выберите месяц:</label>
+    <select class="form-select form-select-sm" id="month_{{ report.id }}">
+        <option value="1" {% if current_month == 1 %}selected{% endif %}>Январь</option>
+        <option value="2" {% if current_month == 2 %}selected{% endif %}>Февраль</option>
+        <option value="3" {% if current_month == 3 %}selected{% endif %}>Март</option>
+        <option value="4" {% if current_month == 4 %}selected{% endif %}>Апрель</option>
+        <option value="5" {% if current_month == 5 %}selected{% endif %}>Май</option>
+        <option value="6" {% if current_month == 6 %}selected{% endif %}>Июнь</option>
+        <option value="7" {% if current_month == 7 %}selected{% endif %}>Июль</option>
+        <option value="8" {% if current_month == 8 %}selected{% endif %}>Август</option>
+        <option value="9" {% if current_month == 9 %}selected{% endif %}>Сентябрь</option>
+        <option value="10" {% if current_month == 10 %}selected{% endif %}>Октябрь</option>
+        <option value="11" {% if current_month == 11 %}selected{% endif %}>Ноябрь</option>
+        <option value="12" {% if current_month == 12 %}selected{% endif %}>Декабрь</option>
+    </select>
+</div>
+<div class="mb-3">
+    <label for="year_{{ report.id }}" class="form-label small">Год:</label>
+    <input type="number" class="form-control form-control-sm" id="year_{{ report.id }}"
+           value="{{ current_year }}" min="2025" max="2040">
+</div>
+<div class="mb-3">
+    <label for="top_{{ report.id }}" class="form-label small">Количество в топе:</label>
+    <select class="form-select form-select-sm" id="top_{{ report.id }}">
+        <option value="10">Топ-10</option>
+        <option value="20" selected>Топ-20</option>
+        <option value="50">Топ-50</option>
+        <option value="100">Топ-100</option>
+    </select>
+</div>
+{% endif %}
+
                 {% if report.id == 2 %}
                 <!-- Форма выбора месяца для отчета 2 -->
                 <div class="mb-3">
@@ -263,12 +299,38 @@ document.addEventListener('DOMContentLoaded', function() {
     const cardChildren = document.querySelector('.card.bg-success .card-title');
     const cardEvents = document.querySelector('.card.bg-info .card-title');
 
+    // Функция для синхронизации дат во всех формах
+    function syncAllDates(month, year) {
+        // Синхронизируем верхний селектор
+        monthSelect.value = month;
+        yearSelect.value = year;
+
+        // Синхронизируем отчет 1
+        const report1Month = document.getElementById('month_1');
+        const report1Year = document.getElementById('year_1');
+        if (report1Month && report1Year) {
+            report1Month.value = month;
+            report1Year.value = year;
+        }
+
+        // Синхронизируем отчет 2
+        const report2Month = document.getElementById('month_2');
+        const report2Year = document.getElementById('year_2');
+        if (report2Month && report2Year) {
+            report2Month.value = month;
+            report2Year.value = year;
+        }
+
+        // Обновляем отображение
+        currentMonthDisplay.textContent = formatMonthDisplay(month, year);
+    }
+
     // Функция для форматирования отображения месяца
     function formatMonthDisplay(month, year) {
         if (month && year) {
             return `${monthNames[month]} ${year}`;
         } else {
-            return `${year}`; // Только год, если месяц не выбран
+            return `${year}`;
         }
     }
 
@@ -283,8 +345,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Обновляем отображение месяца в кнопке
-                    currentMonthDisplay.textContent = formatMonthDisplay(data.month, data.year);
+                    // Синхронизируем все даты
+                    syncAllDates(data.month, data.year);
 
                     // Обновляем статистику в dropdown
                     statsTotal.textContent = `Участий: ${data.stats.total}`;
@@ -323,7 +385,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Функция для показа уведомлений
     function showToast(message, type = 'info') {
-        // Создаем простое уведомление
         const alertClass = type === 'success' ? 'alert-success' :
                           type === 'error' ? 'alert-danger' : 'alert-info';
 
@@ -337,7 +398,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         document.body.appendChild(toast);
 
-        // Автоматически удаляем через 3 секунды
         setTimeout(() => {
             if (toast.parentNode) {
                 toast.parentNode.removeChild(toast);
@@ -345,7 +405,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
 
-    // Обработчик применения фильтра
+    // Обработчик применения фильтра (верхний селектор)
     applyMonthFilter.addEventListener('click', function() {
         const month = monthSelect.value;
         const year = yearSelect.value;
@@ -361,37 +421,76 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Автоматическое обновление статистики при изменении параметров в формах отчетов
+    // Слушаем изменения в верхнем селекторе (без применения)
+    monthSelect.addEventListener('change', function() {
+        const month = monthSelect.value;
+        const year = yearSelect.value;
+        syncAllDates(month, year);
+    });
+
+    yearSelect.addEventListener('change', function() {
+        const month = monthSelect.value;
+        const year = yearSelect.value;
+        syncAllDates(month, year);
+    });
+
+    // Автоматическое обновление статистики при изменении параметров в отчете 1
+    const report1Month = document.getElementById('month_1');
+    const report1Year = document.getElementById('year_1');
+
+    if (report1Month && report1Year) {
+        [report1Month, report1Year].forEach(element => {
+            element.addEventListener('change', function() {
+                const month = report1Month.value;
+                const year = report1Year.value;
+
+                // Синхронизируем все даты
+                syncAllDates(month, year);
+
+                // Обновляем статистику
+                updateMonthlyStats(month, year);
+            });
+        });
+    }
+
+    // Автоматическое обновление статистики при изменении параметров в отчете 2
     const report2Month = document.getElementById('month_2');
     const report2Year = document.getElementById('year_2');
 
     if (report2Month && report2Year) {
         [report2Month, report2Year].forEach(element => {
             element.addEventListener('change', function() {
-                // Обновляем значения в основном селекторе
-                monthSelect.value = report2Month.value;
-                yearSelect.value = report2Year.value;
+                const month = report2Month.value;
+                const year = report2Year.value;
+
+                // Синхронизируем все даты
+                syncAllDates(month, year);
 
                 // Обновляем статистику
-                updateMonthlyStats(report2Month.value, report2Year.value);
+                updateMonthlyStats(month, year);
             });
         });
     }
 
-    // Обработка кнопок выгрузки отчетов (существующий код)
+    // Обработка кнопок выгрузки отчетов
     document.querySelectorAll('.download-report').forEach(button => {
         button.addEventListener('click', function() {
             const reportId = this.dataset.reportId;
             const baseUrl = this.dataset.url;
 
-            if (reportId === '2') {
-                // Для отчета 2 получаем параметры
+            if (reportId === '1') {
+                const month = document.getElementById('month_1').value;
+                const year = document.getElementById('year_1').value;
+                const top = document.getElementById('top_1').value;
+                const downloadUrl = `${baseUrl}?month=${month}&year=${year}&top=${top}`;
+                window.location.href = downloadUrl;
+
+            } else if (reportId === '2') {
                 const month = document.getElementById('month_2').value;
                 const year = document.getElementById('year_2').value;
                 const downloadUrl = `${baseUrl}?month=${month}&year=${year}`;
                 window.location.href = downloadUrl;
             } else if (reportId === '3') {
-                // Для отчета 3 получаем параметры (квартал вместо полугодия)
                 const quarter = document.getElementById('quarter_3').value;
                 const year = document.getElementById('year_quarter_3').value;
                 const downloadUrl = `${baseUrl}?quarter=${quarter}&year=${year}`;
@@ -402,8 +501,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Инициализация - при первом открытии показываем только год
-    // Это уже работает благодаря шаблону Django
+    // Инициализация при загрузке страницы
+    // Убедимся, что все даты синхронизированы
+    const initialMonth = monthSelect.value;
+    const initialYear = yearSelect.value;
+    syncAllDates(initialMonth, initialYear);
 });
 </script>
 {% endblock %}

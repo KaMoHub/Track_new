@@ -303,12 +303,10 @@ class ResultTypeDeleteView(LoginRequiredMixin, DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
-
 class AddParticipantsView(LoginRequiredMixin, View):
     """Добавление участников в конкурс"""
 
     def get(self, request, pk):
-
         event = get_object_or_404(Event, pk=pk)
 
         # Получаем доступных детей в зависимости от роли пользователя
@@ -328,14 +326,19 @@ class AddParticipantsView(LoginRequiredMixin, View):
             # Для методистов и админов - все дети
             enrollments = StudioEnrollment.objects.select_related('child', 'studio')
 
-        # Исключаем детей, которые уже участвуют в этом конкурсе
+        # ИСКЛЮЧАЕМ ЗАПИСИ, которые уже участвуют в этом конкурсе (проверка по enrollment)
         existing_participations = Participation.objects.filter(event=event).values_list('enrollment_id', flat=True)
         available_enrollments = enrollments.exclude(id__in=existing_participations)
+
+        # Получаем все типы результатов
+        from .models import ResultType
+        result_types = ResultType.objects.all().order_by('code')
 
         context = {
             'event': event,
             'enrollments': available_enrollments,
-            'today': date.today(),  # Добавляем today в контекст
+            'result_types': result_types,
+            'today': date.today(),
             'page_title': f'Добавление участников в конкурс "{event.name}"'
         }
         return render(request, 'events/add_participants.html', context)
@@ -346,6 +349,7 @@ class AddParticipantsView(LoginRequiredMixin, View):
         # Получаем выбранных участников
         enrollment_ids = request.POST.getlist('participants')
         report_date = request.POST.get('report_date')
+        results_data = request.POST.get('results_data')
 
         if not enrollment_ids:
             messages.error(request, 'Не выбраны участники')
@@ -363,32 +367,106 @@ class AddParticipantsView(LoginRequiredMixin, View):
             messages.error(request, 'Неверный формат даты')
             return HttpResponseRedirect(reverse_lazy('events:add_participants', kwargs={'pk': pk}))
 
+        # Парсим JSON с результатами
+        import json
+        results_dict = {}
+        if results_data:
+            try:
+                results_dict = json.loads(results_data)
+            except json.JSONDecodeError:
+                messages.error(request, 'Ошибка при обработке данных результатов')
+                return HttpResponseRedirect(reverse_lazy('events:add_participants', kwargs={'pk': pk}))
+
         # Получаем записи детей
         from ..children.models import StudioEnrollment
         enrollments = StudioEnrollment.objects.filter(id__in=enrollment_ids)
 
+        # Получаем все типы результатов для контекста
+        from .models import ResultType
+        result_types = ResultType.objects.all().order_by('code')
+
         created_count = 0
+        errors = []
+
         for enrollment in enrollments:
             try:
                 from ..participation.models import Participation
+
+                # Получаем результат из словаря (может быть пустым)
+                result_type_id = results_dict.get(str(enrollment.id))
+                result_type = None
+
+                # Если результат указан, пытаемся найти его
+                if result_type_id:
+                    try:
+                        result_type = ResultType.objects.get(id=result_type_id)
+                    except ResultType.DoesNotExist:
+                        # Если тип результата не найден, просто оставляем result_type = None
+                        pass
+
+                # ПРОВЕРКА ИЗМЕНЕНА: проверяем участие по записи в студии, а не по ребенку
+                if Participation.objects.filter(enrollment=enrollment, event=event).exists():
+                    errors.append(
+                        f'Ребенок {enrollment.child.fio} уже участвует в этом конкурсе через студию "{enrollment.studio.name}"')
+                    continue
+
+                # Создаем участие (результат может быть None)
                 Participation.objects.create(
                     child=enrollment.child,
                     enrollment=enrollment,
                     event=event,
                     report_date=report_date,
+                    result_type=result_type,  # Может быть None
                     created_by=request.user
                 )
                 created_count += 1
-            except Exception as e:
-                messages.error(request, f'Ошибка при добавлении {enrollment.child.fio}: {str(e)}')
 
+            except Exception as e:
+                error_msg = f'Ошибка при добавлении {enrollment.child.fio}: {str(e)}'
+                errors.append(error_msg)
+                print(f"DEBUG: {error_msg}")
+
+        # Показываем результаты операции
         if created_count > 0:
             messages.success(
                 request,
                 f'Успешно добавлено {created_count} участников в конкурс "{event.name}"'
             )
 
+        # Показываем ошибки, если они есть
+        for error in errors:
+            messages.error(request, error)
+
+        # Если есть ошибки или не было создано ни одной записи, возвращаем на страницу с формой
+        if errors or created_count == 0:
+            context = {
+                'event': event,
+                'enrollments': self.get_available_enrollments(request.user, event),
+                'result_types': result_types,
+                'today': timezone.now().date(),
+                'page_title': f'Добавление участников в конкурс "{event.name}"'
+            }
+            return render(request, 'events/add_participants.html', context)
+
         return HttpResponseRedirect(reverse_lazy('events:detail', kwargs={'pk': pk}))
+
+    def get_available_enrollments(self, user, event):
+        """Вспомогательный метод для получения доступных записей"""
+        from ..children.models import StudioEnrollment, Teacher
+        from ..participation.models import Participation
+
+        if hasattr(user, 'role') and user.role == 'teacher':
+            try:
+                teacher = Teacher.objects.get(user=user)
+                enrollments = StudioEnrollment.objects.filter(teacher=teacher).select_related('child', 'studio')
+            except Teacher.DoesNotExist:
+                enrollments = StudioEnrollment.objects.none()
+        else:
+            enrollments = StudioEnrollment.objects.select_related('child', 'studio')
+
+        # ИСКЛЮЧАЕМ записи, которые уже участвуют в конкурсе (проверка по enrollment)
+        existing_participations = Participation.objects.filter(event=event).values_list('enrollment_id', flat=True)
+        return enrollments.exclude(id__in=existing_participations)
 
 
 # apps/events/views.py (добавляем новый view)

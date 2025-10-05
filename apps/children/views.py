@@ -10,6 +10,7 @@ from django.utils import timezone
 from .models import Child, Direction, Studio, Teacher, StudioEnrollment, ChildList, TeacherStudioAccess
 from django.core.exceptions import ValidationError
 
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import pandas as pd
 from django.views.generic import View
 import os
@@ -20,146 +21,208 @@ from django.db.models import Count, Q
 from django.utils.timezone import make_aware
 
 
+def get_accessible_studios(user):
+    """Получение списка доступных студий в зависимости от роли пользователя"""
+    if hasattr(user, 'role'):
+        if user.role == 'teacher':
+            try:
+                teacher = Teacher.objects.get(user=user)
+                accessible_studio_ids = TeacherStudioAccess.objects.filter(
+                    teacher=teacher
+                ).values_list('studio_id', flat=True)
+                return Studio.objects.filter(id__in=accessible_studio_ids)
+            except Teacher.DoesNotExist:
+                return Studio.objects.none()
+        elif user.role in ['methodist', 'admin']:
+            return Studio.objects.all()
+    return Studio.objects.none()
+
+def get_accessible_enrollments(user):
+    """Получение доступных записей в студиях"""
+    accessible_studios = get_accessible_studios(user)
+    return StudioEnrollment.objects.filter(studio__in=accessible_studios)
+
+def get_accessible_participations(user):
+    """Получение доступных участий"""
+    accessible_enrollments = get_accessible_enrollments(user)
+    from apps.participation.models import Participation
+    return Participation.objects.filter(enrollment__in=accessible_enrollments)
+
+
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from django.http import HttpResponse
+from django.views.generic import View
+from django.contrib.auth.mixins import LoginRequiredMixin
+from datetime import datetime, date
+import pandas as pd
+
+
 class DirectionCompetitionReportView(LoginRequiredMixin, View):
-    """Генерация отчета по участию в конкурсах по направлениям"""
+    """Отчет по самым активным детям с достижениями"""
 
     def get(self, request, *args, **kwargs):
-        # Период отчета: с сентября 2025 по май 2026
-        start_date = date(2025, 9, 1)
-        end_date = date(2026, 5, 31)
 
-        # Уровни конкурсов
-        levels = ['centrovskiy', 'gorodskoy', 'respublikanskiy', 'vserossiyskiy', 'mezhdunarodnyy']
-        level_names = {
-            'centrovskiy': 'Центровский',
-            'gorodskoy': 'Городской',
-            'respublikanskiy': 'Республиканский',
-            'vserossiyskiy': 'Всероссийский',
-            'mezhdunarodnyy': 'Международный'
-        }
+        # Получаем параметры из запроса (месяц, год и топ)
+        month = request.GET.get('month', datetime.now().month)
+        year = request.GET.get('year', datetime.now().year)
+        top_n = int(request.GET.get('top', 20))  # Топ N детей
 
-        # Месяцы для отчета
-        months = []
-        current_date = start_date
-        while current_date <= end_date:
-            months.append(current_date.strftime('%Y-%m'))
-            # Переходим к следующему месяцу
-            if current_date.month == 12:
-                current_date = date(current_date.year + 1, 1, 1)
-            else:
-                current_date = date(current_date.year, current_date.month + 1, 1)
+        try:
+            month = int(month)
+            year = int(year)
+        except (ValueError, TypeError):
+            current_date = datetime.now()
+            month = current_date.month
+            year = current_date.year
 
-        # Получаем данные из базы
+        # Определяем даты начала и конца периода
+        # Учебный год: с сентября предыдущего года по выбранный месяц текущего года
+        if 1 <= month <= 8:  # январь-август
+            start_date = date(year - 1, 9, 1)  # сентябрь предыдущего года
+        else:  # сентябрь-декабрь
+            start_date = date(year, 9, 1)  # сентябрь текущего года
+
+        # Конец периода - конец выбранного месяца
+        if month == 12:
+            end_date = date(year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end_date = date(year, month + 1, 1) - timedelta(days=1)
+
+        print(f"Период отчета: {start_date} - {end_date}")
+
+
+        # Получаем данные
         from apps.participation.models import Participation
-        from apps.events.models import Event
 
-        # Группируем данные по направлениям и педагогам
-        enrollments = StudioEnrollment.objects.filter(
-            participation__report_date__range=(make_aware(datetime.combine(start_date, datetime.min.time())),
-                                               make_aware(datetime.combine(end_date, datetime.max.time())))
+        accessible_participations = get_accessible_participations(request.user)
+
+        participations = accessible_participations.filter(
+            report_date__range=(start_date, end_date)
         ).select_related(
-            'direction', 'teacher', 'teacher__user'
-        ).prefetch_related(
-            'participation_set__event'
-        ).annotate(
-            participation_count=Count('participation')
-        ).filter(participation_count__gt=0)
+            'child', 'enrollment__studio', 'enrollment__direction', 'event', 'result_type'
+        )
 
-        # Создаем структуру данных для отчета
-        report_data = []
+        # Группируем по детям
+        children_stats = {}
 
-        for enrollment in enrollments:
-            direction_name = enrollment.direction.name
-            teacher_name = str(enrollment.teacher)
-
-            # Находим или создаем запись для направления-педагога
-            direction_data = next((item for item in report_data if
-                                   item['direction'] == direction_name and
-                                   item['teacher'] == teacher_name), None)
-
-            if not direction_data:
-                direction_data = {
-                    'direction': direction_name,
-                    'teacher': teacher_name,
-                    'months': {month: {level: 0 for level in levels} for month in months}
+        for participation in participations:
+            child_id = participation.child.id
+            if child_id not in children_stats:
+                children_stats[child_id] = {
+                    'fio': participation.child.fio,
+                    'studio': participation.enrollment.studio.name if participation.enrollment.studio else '',
+                    'direction': participation.enrollment.direction.name if participation.enrollment.direction else '',
+                    'total_participations': 0,
+                    'certificates': 0,
+                    'diplomas': 0,
+                    'unique_events': set(),
+                    'levels': set(),
+                    'last_participation': participation.report_date
                 }
-                report_data.append(direction_data)
 
-            # Считаем участия по месяцам и уровням
-            for participation in enrollment.participation_set.all():
-                if participation.report_date and start_date <= participation.report_date <= end_date:
-                    month_key = participation.report_date.strftime('%Y-%m')
-                    event_level = participation.event.level if participation.event else 'centrovskiy'
+            children_stats[child_id]['total_participations'] += 1
+            children_stats[child_id]['unique_events'].add(participation.event_id)
 
-                    if month_key in direction_data['months'] and event_level in direction_data['months'][month_key]:
-                        direction_data['months'][month_key][event_level] += 1
+            if participation.event and participation.event.level:
+                # Переводим уровень на русский
+                russian_level = participation.event.get_level_display()
+                children_stats[child_id]['levels'].add(russian_level)
 
-        # Создаем DataFrame для Excel
+            # Считаем сертификаты и дипломы
+            if participation.result_type:
+                result_name = participation.result_type.name.lower()
+                if 'сертификат' in result_name or 'свидетельство' in result_name:
+                    children_stats[child_id]['certificates'] += 1
+                elif 'диплом' in result_name:
+                    children_stats[child_id]['diplomas'] += 1
+
+        # Сортируем по количеству участий и берем топ N
+        top_children = sorted(
+            children_stats.values(),
+            key=lambda x: x['total_participations'],
+            reverse=True
+        )[:top_n]
+
+        # Подготавливаем данные для Excel
         rows = []
-        for item in report_data:
-            base_row = {
-                'Направление': item['direction'],
-                'Педагог': item['teacher']
+        for i, child_data in enumerate(top_children, 1):
+            row = {
+                'Место': i,
+                'ФИО ребенка': child_data['fio'],
+                'Направление': child_data['direction'],
+                'Студия': child_data['studio'],
+                'Всего участий': child_data['total_participations'],
+                'Сертификаты': child_data['certificates'],
+                'Дипломы': child_data['diplomas'],
+                'Уровни конкурсов': ', '.join(sorted(child_data['levels'])),  # Сортируем для красоты
+                'Последнее участие': child_data['last_participation'].strftime('%d.%m.%Y') if child_data[
+                    'last_participation'] else ''
             }
+            rows.append(row)
 
-            # Добавляем данные по месяцам и уровням
-            for month in months:
-                for level in levels:
-                    col_name = f"{month}_{level}"
-                    base_row[col_name] = item['months'][month][level]
-
-            rows.append(base_row)
-
-        # Создаем Excel файл
         df = pd.DataFrame(rows)
 
-        # Переименовываем колонки для читаемости
-        column_rename = {}
-        for month in months:
-            for level in levels:
-                old_name = f"{month}_{level}"
-                month_name = datetime.strptime(month, '%Y-%m').strftime('%b %Y')
-                new_name = f"{month_name} ({level_names[level]})"
-                column_rename[old_name] = new_name
-
-        df = df.rename(columns=column_rename)
-
-        # Создаем HttpResponse с Excel файлом
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response[
-            'Content-Disposition'] = f'attachment; filename="competition_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
+        response['Content-Disposition'] = f'attachment; filename="top_children_{year}.xlsx"'
 
         with pd.ExcelWriter(response, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name='Отчет по конкурсам', index=False)
+            df.to_excel(writer, sheet_name=f'Топ {top_n} детей', index=False)
 
-            # Добавляем итоги
-            summary_data = []
-            for level in levels:
-                level_total = df[[col for col in df.columns if level_names[level] in col]].sum().sum()
-                summary_data.append({'Уровень': level_names[level], 'Всего': level_total})
-
-            summary_df = pd.DataFrame(summary_data)
-            summary_df.to_excel(writer, sheet_name='Итоги по уровням', index=False)
-
-            # Форматируем файл
+            # Получаем workbook и worksheet для форматирования
             workbook = writer.book
-            worksheet = writer.sheets['Отчет по конкурсам']
+            worksheet = writer.sheets[f'Топ {top_n} детей']
 
-            # Настраиваем ширину колонок
-            for column in worksheet.columns:
-                max_length = 0
-                column_letter = column[0].column_letter
-                for cell in column:
-                    try:
-                        if len(str(cell.value)) > max_length:
-                            max_length = len(str(cell.value))
-                    except:
-                        pass
-                adjusted_width = min(max_length + 2, 30)
-                worksheet.column_dimensions[column_letter].width = adjusted_width
+            # Стили для заголовков
+            header_font = Font(name='Arial', size=12, bold=True, color='FFFFFF')
+            header_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
+            header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            border = Border(left=Side(style='thin'), right=Side(style='thin'),
+                            top=Side(style='thin'), bottom=Side(style='thin'))
+
+            # Стили для данных
+            data_font = Font(name='Arial', size=10)
+            data_alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+            data_alignment_center = Alignment(horizontal='center', vertical='center')
+
+            # Устанавливаем ширину колонок
+            column_widths = {
+                'A': 8,  # Место
+                'B': 25,  # ФИО ребенка
+                'C': 20,  # Направление
+                'D': 20,  # Студия
+                'E': 12,  # Всего участий
+                'F': 12,  # Сертификаты
+                'G': 12,  # Дипломы
+                'H': 25,  # Уровни конкурсов
+                'I': 15,  # Последнее участие
+            }
+
+            for col, width in column_widths.items():
+                worksheet.column_dimensions[col].width = width
+
+            # Форматируем заголовки
+            for cell in worksheet[1]:
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+                cell.border = border
+
+            # Форматируем данные
+            for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):
+                for cell in row:
+                    cell.font = data_font
+                    cell.border = border
+
+                    # Центрируем числовые колонки
+                    if cell.column in [1, 5, 6, 7]:  # A, E, F, G - Место, Всего участий, Сертификаты, Дипломы
+                        cell.alignment = data_alignment_center
+                    else:
+                        cell.alignment = data_alignment
+
+            # Устанавливаем высоту строки для заголовков
+            worksheet.row_dimensions[1].height = 40
 
         return response
-
 
 # Добавляем URL в apps/children/urls.py
 # path('reports/competition/', views.DirectionCompetitionReportView.as_view(), name='competition_report'),
@@ -1301,7 +1364,6 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
             month = int(month)
             year = int(year)
         except (ValueError, TypeError):
-            # Если некорректные параметры, используем текущий месяц
             current_date = datetime.now()
             month = current_date.month
             year = current_date.year
@@ -1321,10 +1383,14 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
         }
         month_name = month_names.get(month, '')
 
-        # Получаем данные участий за указанный месяц
+        # Получаем данные участий за указанный месяц с фильтрацией по доступным студиям
         from apps.participation.models import Participation
 
-        participations = Participation.objects.filter(
+        # Получаем доступные участия
+        accessible_participations = get_accessible_participations(request.user)
+
+        # Фильтруем по периоду
+        participations = accessible_participations.filter(
             report_date__range=(start_date, end_date)
         ).select_related(
             'child',
@@ -1350,7 +1416,7 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
             event_level = participation.event.get_level_display() if participation.event else ''
             teacher = str(participation.enrollment.teacher) if participation.enrollment.teacher else ''
 
-            # Форма участия (можно добавить поле в модель или определить логику)
+            # Форма участия
             participation_form = self.get_participation_form(participation)
 
             # Результат
@@ -1418,13 +1484,12 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
 
         return response
 
+    # Остальные методы класса остаются без изменений
     def get_participation_form(self, participation):
-        """Определяем форму участия (можно доработать логику)"""
+        """Определяем форму участия"""
         if participation.event and hasattr(participation.event, 'is_offline'):
             return 'Очная' if participation.event.is_offline else 'Дистанционная'
 
-        # Здесь можно добавить логику определения формы участия
-        # Например, по названию события или другим признакам
         event_name = participation.event.name.lower() if participation.event else ''
 
         if any(word in event_name for word in ['дистанц', 'online', 'онлайн']):
@@ -1432,30 +1497,26 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
         elif any(word in event_name for word in ['очная', 'offline', 'оффлайн']):
             return 'Очная'
         else:
-            return 'Очная'  # По умолчанию
+            return 'Очная'
 
     def add_report_header(self, worksheet, month_name, year, records_count):
         """Добавляем заголовок отчета"""
         from openpyxl.styles import Font, Alignment
 
-        # Вставляем строки для заголовка
         worksheet.insert_rows(1, 3)
 
-        # Заголовок отчета
         worksheet.merge_cells('A1:I1')
         title_cell = worksheet['A1']
         title_cell.value = f'ДОСТИЖЕНИЯ ДЕТЕЙ'
         title_cell.font = Font(size=14, bold=True)
         title_cell.alignment = Alignment(horizontal='center')
 
-        # Период отчета
         worksheet.merge_cells('A2:I2')
         period_cell = worksheet['A2']
         period_cell.value = f'ЗА {month_name} {year}'
         period_cell.font = Font(size=12, bold=True)
         period_cell.alignment = Alignment(horizontal='center')
 
-        # Количество записей
         worksheet.merge_cells('A3:I3')
         count_cell = worksheet['A3']
         count_cell.value = f'Всего записей: {records_count}'
@@ -1467,7 +1528,6 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
         from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
         from openpyxl.utils import get_column_letter
 
-        # Стиль для границ
         thin_border = Border(
             left=Side(style='thin'),
             right=Side(style='thin'),
@@ -1475,44 +1535,34 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
             bottom=Side(style='thin')
         )
 
-        # Стиль для заголовков колонок
         header_font = Font(name='Times New Roman', size=14, bold=True)
         header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-        header_fill = PatternFill(start_color='FCD5B4', end_color='FCD5B4', fill_type='solid')  # Желтый цвет
+        header_fill = PatternFill(start_color='FCD5B4', end_color='FCD5B4', fill_type='solid')
 
-        # Применяем стиль к заголовкам (строки 1-4, так как выше добавили 3 строки + сама строка заголовков)
-        for row_num in range(1, 5):  # Строки 1, 2, 3, 4
+        for row_num in range(1, 5):
             for col_num, column_name in enumerate(df.columns, 1):
                 col_letter = get_column_letter(col_num)
                 cell = worksheet[f'{col_letter}{row_num}']
                 cell.font = header_font
                 cell.alignment = header_alignment
-                cell.fill = header_fill  # Закрашиваем в желтый цвет
+                cell.fill = header_fill
 
-        # Настраиваем ширину колонок
         column_widths = {
-            'A': 30,  # ФИО ребенка
-            'B': 25,  # Направление
-            'C': 25,  # Студия
-            'D': 50,  # Название мероприятия
-            'E': 20,  # Уровень
-            'F': 40,  # ФИО педагога
-            'G': 15,  # Форма участия
-            'H': 20,  # Результат
-            'I': 12  # Дата участия
+            'A': 30, 'B': 25, 'C': 25, 'D': 50, 'E': 20,
+            'F': 40, 'G': 15, 'H': 20, 'I': 12
         }
 
         for col_letter, width in column_widths.items():
             worksheet.column_dimensions[col_letter].width = width
 
-        # Включаем перенос текста для всех ячеек в данных (начиная с 5 строки)
         for row_num in range(5, worksheet.max_row + 1):
             for col_num in range(1, len(df.columns) + 1):
                 col_letter = get_column_letter(col_num)
                 cell = worksheet[f'{col_letter}{row_num}']
-                cell.alignment = Alignment(horizontal='left', vertical='top',wrap_text=True)
+                cell.alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
                 cell.font = Font(name='Times New Roman', size=12)
-                cell.border = thin_border  # Добавляем границы
+                cell.border = thin_border
+
 
 
 # apps/children/views.py (обновляем ReportsDashboardView)
@@ -1570,13 +1620,14 @@ class ReportsDashboardView(LoginRequiredMixin, TemplateView):
             'reports': [
                 {
                     'id': 1,
-                    'title': 'Отчет по конкурсам по направлениям',
-                    'description': 'Статистика участия в конкурсах по направлениям и педагогам с помесячной разбивкой',
+                    'title': 'Топ активных детей с достижениями',
+                    'description': 'Рейтинг самых активных детей по количеству участий в конкурсах',
                     'url': reverse('children:competition_report'),
                     'icon': 'bi-bar-chart',
                     'color': 'primary',
                     'available': True,
-                    'needs_params': False
+                    'needs_params': True,
+                    'params_type': 'month_year'
                 },
                 {
                     'id': 2,
@@ -1613,14 +1664,13 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
         # Получаем параметры из запроса (квартал и год)
-        quarter = request.GET.get('quarter', '1')  # 1, 2, 3 или 4 квартал
+        quarter = request.GET.get('quarter', '1')
         year = request.GET.get('year', datetime.now().year)
 
         try:
             quarter = int(quarter)
             year = int(year)
         except (ValueError, TypeError):
-            # Если некорректные параметры, используем текущий квартал
             current_date = datetime.now()
             year = current_date.year
             quarter = (current_date.month - 1) // 3 + 1
@@ -1630,44 +1680,38 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
             start_date = date(year, 1, 1)
             end_date = date(year, 3, 31)
             quarter_name = "1 квартал"
-            months = [1, 2, 3]  # Январь-Март
+            months = [1, 2, 3]
         elif quarter == 2:
             start_date = date(year, 4, 1)
             end_date = date(year, 6, 30)
             quarter_name = "2 квартал"
-            months = [4, 5, 6]  # Апрель-Июнь
+            months = [4, 5, 6]
         elif quarter == 3:
             start_date = date(year, 7, 1)
             end_date = date(year, 9, 30)
             quarter_name = "3 квартал"
-            months = [7, 8, 9]  # Июль-Сентябрь
+            months = [7, 8, 9]
         else:
             start_date = date(year, 10, 1)
             end_date = date(year, 12, 31)
             quarter_name = "4 квартал"
-            months = [10, 11, 12]  # Октябрь-Декабрь
+            months = [10, 11, 12]
 
-        # Уровни конкурсов
+        # Уровни конкурсов (правильные ключи из модели)
         levels = [
-            'centrovskiy',  # Центровский
-            'gorodskoy',  # Городской
-            'rayonnyy',  # Районный
-            'respublikanskiy',  # Республиканский
-            'regionalnyy',  # Региональный
-            'mezhregionalnyy',  # Межрегиональный
-            'vserossiyskiy',  # Всероссийский
-            'mezhdunarodnyy'  # Международный
+            'center', 'city', 'district', 'republic',
+            'regional', 'interregional', 'allrussian', 'international'
         ]
 
         level_names = {
-            'centrovskiy': 'Центровский',
-            'gorodskoy': 'Городской',
-            'rayonnyy': 'Районный',
-            'respublikanskiy': 'Республиканский',
-            'regionalnyy': 'Региональный',
-            'mezhregionalnyy': 'Межрегиональный',
-            'vserossiyskiy': 'Всероссийский',
-            'mezhdunarodnyy': 'Международный'
+            'center': 'Центровский',
+            'city': 'Городской',
+            'district': 'Районный',
+            'republic': 'Республиканский',
+            'regional': 'Региональный',
+            'interregional': 'Межрегиональный',
+            'allrussian': 'Всероссийский',
+            'international': 'Международный'
         }
 
         # Названия месяцев для отчета
@@ -1677,10 +1721,14 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
             9: 'сентябрь', 10: 'октябрь', 11: 'ноябрь', 12: 'декабрь'
         }
 
-        # Получаем данные участий за указанный квартал
+        # Получаем данные участий за указанный квартал с фильтрацией по доступным студиям
         from apps.participation.models import Participation
 
-        participations = Participation.objects.filter(
+        # Получаем доступные участия
+        accessible_participations = get_accessible_participations(request.user)
+
+        # Фильтруем по периоду
+        participations = accessible_participations.filter(
             report_date__range=(start_date, end_date)
         ).select_related(
             'child',
@@ -1691,7 +1739,7 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
             'result_type'
         ).order_by('child__fio', 'report_date')
 
-        # СОЗДАЕМ СТРУКТУРУ ДАННЫХ report_data - ЭТОГО НЕ БЫЛО В ВАШЕМ КОДЕ
+        # Создаем структуру данных для отчета
         report_data = {}
 
         for participation in participations:
@@ -1719,23 +1767,23 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
                     }
 
                 # Определяем уровень события
-                event_level = 'centrovskiy'  # По умолчанию
+                event_level = 'centrovskiy'
                 if participation.event and participation.event.level:
                     event_level = participation.event.level
 
                 if event_level not in levels:
-                    event_level = 'centrovskiy'  # По умолчанию
+                    event_level = 'centrovskiy'
 
                 # Определяем тип результата
                 result_type = self.get_result_type(participation)
 
                 # Увеличиваем счетчик
-                if result_type == 's':  # Свидетельство
+                if result_type == 's':
                     report_data[teacher_name]['months'][month_key][event_level]['s'] += 1
-                elif result_type == 'r':  # Результат
+                elif result_type == 'r':
                     report_data[teacher_name]['months'][month_key][event_level]['r'] += 1
 
-        # # Создаем правильную структуру данных для DataFrame
+        # Создаем правильную структуру данных для DataFrame
         rows = []
         teacher_counter = 1
 
@@ -1749,13 +1797,10 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
             # Для каждого месяца и уровня добавляем данные в правильном порядке
             for month_num in months:
                 month_key = f"{month_num:02d}"
-                # Получаем данные для месяца или создаем пустые
                 month_data = data['months'].get(month_key, {level: {'s': 0, 'r': 0} for level in levels})
 
                 for level in levels:
-                    # Свидетельства (с)
                     base_row[f'{month_names[month_num]}_{level}_s'] = month_data.get(level, {'s': 0, 'r': 0})['s']
-                    # Результаты (р)
                     base_row[f'{month_names[month_num]}_{level}_r'] = month_data.get(level, {'s': 0, 'r': 0})['r']
 
             # Добавляем итоги
@@ -1765,29 +1810,20 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
 
             rows.append(base_row)
 
-        # Создаем Excel файл с правильным порядком колонок
+        # Создаем Excel файл с правильным порядок колонок
         if rows:
             df = pd.DataFrame(rows)
-
-            # Правильный порядок колонок: №, ФИО, затем по месяцам (внутри месяца по уровням)
             correct_columns_order = ['№', 'ФИО педагога']
-
-            # Добавляем колонки в правильном порядке: месяц → уровень → с/р
 
             for level in levels:
                 for month_num in months:
                     month_name = month_names[month_num]
-
                     correct_columns_order.append(f'{month_name}_{level}_s')
                     correct_columns_order.append(f'{month_name}_{level}_r')
 
-
             correct_columns_order.extend(['Сертификаты', 'Результаты', 'Итого'])
-
-            # Переупорядочиваем DataFrame
             df = df[correct_columns_order]
         else:
-            # Если нет данных, создаем пустой DataFrame с правильными колонками
             columns = ['№', 'ФИО педагога']
             for month_num in months:
                 for level in levels:
@@ -1801,25 +1837,17 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
         response['Content-Disposition'] = f'attachment; filename="dostizheniya_kvartal_{quarter}_{year}.xlsx"'
 
         with pd.ExcelWriter(response, engine='openpyxl') as writer:
-            # Основной лист с данными - начинаем с 7 строки (после шапки)
             df.to_excel(writer, sheet_name='Достижения за квартал', index=False, startrow=6, header=False)
-
-            # Получаем workbook для форматирования
             workbook = writer.book
             worksheet = writer.sheets['Достижения за квартал']
 
-            # Удаляем лишние строки после данных
-            total_rows = len(df) + 7  # 6 строк шапки + заголовок данных
+            total_rows = len(df) + 7
             if worksheet.max_row > total_rows:
-                # Удаляем все строки после наших данных
                 for row_num in range(worksheet.max_row, total_rows, -1):
                     worksheet.delete_rows(row_num)
 
-            # Добавляем заголовок и создаем сложную шапку
             self.add_report_header(worksheet, quarter_name, year, len(rows))
             self.create_complex_header(worksheet, months, month_names, levels, level_names, len(df.columns))
-
-            # Форматируем таблицу
             self.format_quarter_worksheet(worksheet, df, months, month_names, levels, level_names)
 
         return response
@@ -1828,17 +1856,15 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
         """Определяем тип результата: 's' (свидетельство) или 'r' (результат)"""
         if participation.result_type:
             result_name = participation.result_type.name.lower()
-            certificate_keywords = ['сертификат', 'Сертификат']
+            certificate_keywords = ['сертификат', 'свидетельство', 'участие']
 
             if any(keyword in result_name for keyword in certificate_keywords):
                 return 's'
 
         if participation.custom_result:
             custom_result = participation.custom_result.lower()
-            # certificate_keywords = ['сертификат', 'свидетельство', 'участие']
-            # if any(keyword in custom_result for keyword in certificate_keywords):
-            #     return 's'
-            if custom_result:
+            certificate_keywords = ['сертификат', 'свидетельство', 'участие']
+            if any(keyword in custom_result for keyword in certificate_keywords):
                 return 's'
 
         if not participation.result_type and not participation.custom_result:
@@ -1945,29 +1971,23 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
                 worksheet[f'{col_letter}6'].value = 'р'
                 current_col += 1
 
-        # ВАЖНОЕ ИСПРАВЛЕНИЕ: применяем стили ко ВСЕМ ячейкам шапки
+        # Применяем стили ко ВСЕМ ячейкам шапки
         for row in range(4, 7):
             for col in range(1, num_columns + 1):
                 cell = worksheet.cell(row=row, column=col)
-
-                # Всегда применяем шрифт, выравнивание и границы
                 cell.font = header_font
                 cell.alignment = header_alignment
                 cell.border = thin_border
-
-                # Заливку применяем только к ячейкам с значениями
                 if cell.value is not None:
                     cell.fill = header_fill
                 else:
-                    # Для пустых ячеек убираем заливку
                     cell.fill = PatternFill(fill_type=None)
 
-        # ДОПОЛНИТЕЛЬНО: Убедимся, что объединенные ячейки имеют правильные границы
-        # Для объединенных ячеек нужно применить стили к первой ячейке в диапазоне
+        # Дополнительно: Убедимся, что объединенные ячейки имеют правильные границы
         merged_ranges = [
-            'A4:A6', 'B4:B6',  # Основные колонки
-            f'{get_column_letter(3)}4:{get_column_letter(3 + len(levels) * 6 - 1)}4',  # Уровни
-            f'{get_column_letter(current_col)}4:{get_column_letter(current_col + 2)}4'  # Итог
+            'A4:A6', 'B4:B6',
+            f'{get_column_letter(3)}4:{get_column_letter(3 + len(levels) * 6 - 1)}4',
+            f'{get_column_letter(current_col)}4:{get_column_letter(current_col + 2)}4'
         ]
 
         # Добавляем диапазоны месяцев
@@ -1987,7 +2007,7 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
         # Применяем стили к объединенным ячейкам
         for range_str in merged_ranges:
             try:
-                cell = worksheet[range_str.split(':')[0]]  # Первая ячейка диапазона
+                cell = worksheet[range_str.split(':')[0]]
                 cell.border = thin_border
                 if cell.value is not None:
                     cell.fill = header_fill
@@ -2011,7 +2031,7 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
             else:
                 num_columns = 2 + (len(levels) * len(months) * 2) + 3
         except:
-            num_columns = 50  # Значение по умолчанию
+            num_columns = 50
 
         # Ограничиваем максимальное количество колонок
         num_columns = min(num_columns, 100)
@@ -2054,7 +2074,6 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
         except:
             pass
 
-
     def add_report_header(self, worksheet, quarter_name, year, records_count):
         """Добавляем заголовок отчета"""
         from openpyxl.styles import Font, Alignment
@@ -2092,7 +2111,6 @@ class MonthlyStatsAPIView(LoginRequiredMixin, View):
             month = int(month)
             year = int(year)
         except (ValueError, TypeError):
-            # Если некорректные параметры, используем текущий месяц
             today = date.today()
             month = today.month
             year = today.year
@@ -2104,10 +2122,14 @@ class MonthlyStatsAPIView(LoginRequiredMixin, View):
         else:
             end_date = date(year, month + 1, 1) - timedelta(days=1)
 
-        # Получаем статистику участий за указанный месяц
+        # Получаем статистику участий за указанный месяц с фильтрацией по доступным студиям
         from apps.participation.models import Participation
 
-        monthly_stats = Participation.objects.filter(
+        # Получаем доступные участия
+        accessible_participations = get_accessible_participations(request.user)
+
+        # Фильтруем по периоду
+        monthly_stats = accessible_participations.filter(
             report_date__range=(start_date, end_date)
         ).aggregate(
             total=Count('id'),
@@ -2131,6 +2153,3 @@ class MonthlyStatsAPIView(LoginRequiredMixin, View):
                 'unique_events': monthly_stats['unique_events'] or 0
             }
         })
-
-
-

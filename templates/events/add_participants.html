@@ -1,5 +1,6 @@
-<!-- templates/events/add_participants.html -->
 {% extends 'base.html' %}
+
+{% load custom_filters %}
 
 {% block title %}Добавление участников - {{ event.name }} - Путь к успеху{% endblock %}
 
@@ -16,7 +17,7 @@
     <div class="col-md-8">
         <div class="card">
             <div class="card-body">
-                <form method="post">
+                <form method="post" id="participantsForm">
                     {% csrf_token %}
 
                     {% if messages %}
@@ -28,15 +29,34 @@
                         {% endfor %}
                     {% endif %}
 
-                    <div class="mb-3">
-                        <label for="report_date" class="form-label">Дата отчета *</label>
-                        <input type="date"
-                               class="form-control"
-                               id="report_date"
-                               name="report_date"
-                               value="{{ request.POST.report_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}"
-                               required>
-                        <div class="form-text">Формат: ДД.ММ.ГГГГ</div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="report_date" class="form-label">Дата отчета *</label>
+                                <input type="date"
+                                       class="form-control"
+                                       id="report_date"
+                                       name="report_date"
+                                       value="{{ request.POST.report_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}"
+                                       required>
+                                <div class="form-text">Формат: ДД.ММ.ГГГГ</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="default_result" class="form-label">Результат по умолчанию</label>
+                                <select class="form-select" id="default_result" name="default_result">
+                                    <option value="">-- Не выбран --</option>
+                                    {% for result_type in result_types %}
+                                        <option value="{{ result_type.id }}"
+                                                {% if request.POST.default_result == result_type.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ result_type.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Будет установлен для всех выбранных участников</div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -44,17 +64,33 @@
                         {% if enrollments %}
                             <div class="border p-3" style="max-height: 400px; overflow-y: auto;">
                                 {% for enrollment in enrollments %}
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input"
-                                               type="checkbox"
-                                               name="participants"
-                                               value="{{ enrollment.id }}"
-                                               id="participant_{{ enrollment.id }}"
-                                               {% if enrollment.id|stringformat:"s" in request.POST.participants %}checked{% endif %}>
-                                        <label class="form-check-label" for="participant_{{ enrollment.id }}">
-                                            <strong>{{ enrollment.child.fio }}</strong><br>
-                                            <small class="text-muted">{{ enrollment.studio.name }}</small>
-                                        </label>
+                                    <div class="participant-item mb-3 p-2 border rounded">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input participant-checkbox"
+                                                   type="checkbox"
+                                                   name="participants"
+                                                   value="{{ enrollment.id }}"
+                                                   id="participant_{{ enrollment.id }}"
+                                                   {% if enrollment.id|stringformat:"s" in request.POST.participants %}checked{% endif %}>
+                                            <label class="form-check-label" for="participant_{{ enrollment.id }}">
+                                                <strong>{{ enrollment.child.fio }}</strong><br>
+                                                <small class="text-muted">{{ enrollment.studio.name }}</small>
+                                            </label>
+                                        </div>
+
+                                        <!-- Выпадающий список для результата -->
+                                        <div class="result-selection" style="{% if not enrollment.id|stringformat:"s" in request.POST.participants %}display: none;{% endif %}">
+                                            <label for="result_{{ enrollment.id }}" class="form-label small">Результат:</label>
+                                            <select class="form-select form-select-sm result-select"
+                                                   data-enrollment-id="{{ enrollment.id }}">
+                                                <option value="">-- Выберите результат --</option>
+                                                {% for result_type in result_types %}
+                                                    <option value="{{ result_type.id }}">
+                                                        {{ result_type.name }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
                                     </div>
                                 {% endfor %}
                             </div>
@@ -67,9 +103,12 @@
                         {% endif %}
                     </div>
 
+                    <!-- Скрытое поле для хранения всех результатов -->
+                    <input type="hidden" name="results_data" id="resultsData">
+
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                         {% if enrollments %}
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
                                 <i class="bi bi-person-plus"></i> Добавить участников
                             </button>
                         {% endif %}
@@ -97,7 +136,9 @@
                     <h6><i class="bi bi-info-circle"></i> Инструкция</h6>
                     <ul>
                         <li>Выберите дату отчета</li>
+                        <li>Выберите результат по умолчанию (опционально)</li>
                         <li>Отметьте участников из списка</li>
+                        <li>При необходимости измените результат для отдельных участников</li>
                         <li>Нажмите "Добавить участников"</li>
                     </ul>
                 </div>
@@ -105,4 +146,115 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('participantsForm');
+    const resultsData = document.getElementById('resultsData');
+    const submitBtn = document.getElementById('submitBtn');
+    const defaultResult = document.getElementById('default_result');
+
+    // Показываем/скрываем выбор результата при изменении чекбокса
+    document.querySelectorAll('.participant-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const resultSelection = this.closest('.participant-item').querySelector('.result-selection');
+            if (this.checked) {
+                resultSelection.style.display = 'block';
+                // Устанавливаем результат по умолчанию при выборе участника
+                const select = resultSelection.querySelector('.result-select');
+                if (defaultResult.value && !select.value) {
+                    select.value = defaultResult.value;
+                }
+            } else {
+                resultSelection.style.display = 'none';
+                // Сбрасываем выбор результата при снятии чекбокса
+                const select = resultSelection.querySelector('.result-select');
+                select.value = '';
+            }
+        });
+    });
+
+    // При изменении результата по умолчанию обновляем выбранных участников
+    defaultResult.addEventListener('change', function() {
+        if (this.value) {
+            // Обновляем результат для всех уже выбранных участников
+            document.querySelectorAll('.participant-checkbox:checked').forEach(checkbox => {
+                const enrollmentId = checkbox.value;
+                const select = document.querySelector(`.result-select[data-enrollment-id="${enrollmentId}"]`);
+                if (select && !select.value) {
+                    select.value = this.value;
+                }
+            });
+        }
+    });
+
+    // Обработка отправки формы
+    form.addEventListener('submit', function(event) {
+        // Собираем все результаты в один JSON
+        const results = {};
+        let hasErrors = false;
+        const errorMessages = [];
+
+        // Проверяем дату отчета
+        const reportDate = document.getElementById('report_date').value;
+        if (!reportDate) {
+            hasErrors = true;
+            errorMessages.push('Дата отчета обязательна для заполнения');
+        }
+
+        // Собираем данные о результатах (результат может быть пустым)
+        document.querySelectorAll('.participant-checkbox:checked').forEach(checkbox => {
+            const enrollmentId = checkbox.value;
+            const select = document.querySelector(`.result-select[data-enrollment-id="${enrollmentId}"]`);
+
+            // Сохраняем результат даже если он пустой
+            if (select) {
+                results[enrollmentId] = select.value || ''; // Пустая строка если результат не выбран
+            }
+        });
+
+        // Проверяем, что выбран хотя бы один участник
+        if (document.querySelectorAll('.participant-checkbox:checked').length === 0) {
+            hasErrors = true;
+            errorMessages.push('Выберите хотя бы одного участника');
+        }
+
+        if (hasErrors) {
+            event.preventDefault();
+
+            // Показываем ошибки
+            showErrors(errorMessages);
+            return;
+        }
+
+        // Сохраняем результаты в скрытое поле
+        resultsData.value = JSON.stringify(results);
+
+        // Блокируем кнопку отправки
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Обработка...';
+    });
+
+    function showErrors(messages) {
+        // Удаляем старые алерты
+        document.querySelectorAll('.alert-danger').forEach(alert => alert.remove());
+
+        // Создаем новый алерт с ошибками
+        let alertHtml = '<div class="alert alert-danger alert-dismissible fade show" role="alert">';
+        alertHtml += '<h6><i class="bi bi-exclamation-triangle"></i> Ошибки заполнения формы:</h6>';
+        alertHtml += '<ul class="mb-0">';
+        messages.forEach(msg => {
+            alertHtml += `<li>${msg}</li>`;
+        });
+        alertHtml += '</ul>';
+        alertHtml += '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+        alertHtml += '</div>';
+
+        // Добавляем алерт в начало формы
+        form.insertAdjacentHTML('afterbegin', alertHtml);
+    }
+});
+</script>
 {% endblock %}
