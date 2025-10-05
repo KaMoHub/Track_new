@@ -388,8 +388,16 @@ class ParticipationUpdateView(BaseParticipationView, UpdateView):
         file_upload = self.request.FILES.get('file_upload')
         if file_upload:
             try:
+                # СОЗДАЕМ экземпляр UploadedFile перед вызовом функции
+                uploaded_file = UploadedFile(
+                    participation=self.object,
+                    original_name=file_upload.name,
+                    file_size=file_upload.size,
+                    mime_type=file_upload.content_type,
+                    uploaded_by=self.request.user
+                )
                 from .file_handlers import handle_file_upload
-                handle_file_upload(self.object, file_upload, self.request.user)
+                handle_file_upload(uploaded_file, file_upload, self.request.user)
                 messages.success(
                     self.request,
                     f'Файл "{file_upload.name}" успешно загружен.'
@@ -408,7 +416,7 @@ class ParticipationUpdateView(BaseParticipationView, UpdateView):
             self.request,
             'Пожалуйста, исправьте ошибки в форме.'
         )
-        return super().form_valid(form)
+        return super().form_invalid(form)
 
 class ParticipationDeleteView(BaseParticipationView, DeleteView):
     """Удаление участия"""
