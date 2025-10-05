@@ -1,5 +1,6 @@
 # apps/children/views.py
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
+from django.views import View
 from django.shortcuts import render
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -1515,6 +1516,7 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
 
 
 # apps/children/views.py (обновляем ReportsDashboardView)
+# apps/children/views.py (обновляем ReportsDashboardView)
 class ReportsDashboardView(LoginRequiredMixin, TemplateView):
     """Дашборд с отчетами"""
     template_name = 'children/reports_dashboard.html'
@@ -1522,22 +1524,25 @@ class ReportsDashboardView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Статистика для отображения на дашборде
-        from datetime import datetime, date, timedelta
-        from django.db.models import Count
+        # Получаем параметры месяца из запроса или используем текущий
+        try:
+            month = int(self.request.GET.get('month', 0))
+            year = int(self.request.GET.get('year', 0))
+        except (ValueError, TypeError):
+            month = year = 0
 
-        # Текущая дата
+        # Если параметры невалидны, используем текущий месяц
         today = date.today()
-        current_month = today.month
-        current_year = today.year
-        current_quarter = (current_month - 1) // 3 + 1  # Вычисляем текущий квартал (1-4)
+        if not (1 <= month <= 12) or not (2020 <= year <= 2100):
+            month = today.month
+            year = today.year
 
-        # Статистика за текущий месяц
-        start_of_month = date(current_year, current_month, 1)
-        if current_month == 12:
-            end_of_month = date(current_year + 1, 1, 1) - timedelta(days=1)
+        # Статистика за выбранный месяц
+        start_of_month = date(year, month, 1)
+        if month == 12:
+            end_of_month = date(year + 1, 1, 1) - timedelta(days=1)
         else:
-            end_of_month = date(current_year, current_month + 1, 1) - timedelta(days=1)
+            end_of_month = date(year, month + 1, 1) - timedelta(days=1)
 
         from apps.participation.models import Participation
         monthly_stats = Participation.objects.filter(
@@ -1548,17 +1553,20 @@ class ReportsDashboardView(LoginRequiredMixin, TemplateView):
             unique_events=Count('event', distinct=True)
         )
 
+        # Вычисляем текущий квартал
+        current_quarter = (month - 1) // 3 + 1
+
         # Базовые URL для отчетов
         monthly_report_base_url = reverse('children:monthly_achievements_report')
-        quarter_report_base_url = reverse('children:semester_achievements_report')  # Оставляем старый URL для совместимости
+        quarter_report_base_url = reverse('children:semester_achievements_report')
 
         context.update({
-            'current_month': current_month,
-            'current_year': current_year,
-            'current_quarter': current_quarter,  # Заменяем current_semester на current_quarter
+            'current_month': month,
+            'current_year': year,
+            'current_quarter': current_quarter,
             'monthly_stats': monthly_stats,
             'monthly_report_base_url': monthly_report_base_url,
-            'quarter_report_base_url': quarter_report_base_url,  # Новое имя переменной
+            'quarter_report_base_url': quarter_report_base_url,
             'reports': [
                 {
                     'id': 1,
@@ -1583,19 +1591,20 @@ class ReportsDashboardView(LoginRequiredMixin, TemplateView):
                 },
                 {
                     'id': 3,
-                    'title': 'Достижения детей за квартал',  # Обновляем название
-                    'description': 'Количественные показатели по уровням конкурсов с разделением на свидетельства и результаты за квартал',  # Обновляем описание
+                    'title': 'Достижения детей за квартал',
+                    'description': 'Количественные показатели по уровням конкурсов с разделением на свидетельства и результаты за квартал',
                     'url': quarter_report_base_url,
                     'icon': 'bi-graph-up',
                     'color': 'info',
                     'available': True,
                     'needs_params': True,
-                    'params_type': 'quarter_year'  # Меняем тип параметров
+                    'params_type': 'quarter_year'
                 }
             ]
         })
 
         return context
+
 
 
 # apps/children/views.py (добавляем новый класс отчета)
@@ -2070,4 +2079,58 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
         worksheet['A3'].value = f'Всего педагогов: {records_count}'
         worksheet['A3'].font = Font(size=10)
         worksheet['A3'].alignment = Alignment(horizontal='center')
+
+
+class MonthlyStatsAPIView(LoginRequiredMixin, View):
+    """API для получения статистики за выбранный месяц"""
+
+    def get(self, request, *args, **kwargs):
+        month = request.GET.get('month')
+        year = request.GET.get('year')
+
+        try:
+            month = int(month)
+            year = int(year)
+        except (ValueError, TypeError):
+            # Если некорректные параметры, используем текущий месяц
+            today = date.today()
+            month = today.month
+            year = today.year
+
+        # Определяем даты начала и конца месяца
+        start_date = date(year, month, 1)
+        if month == 12:
+            end_date = date(year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end_date = date(year, month + 1, 1) - timedelta(days=1)
+
+        # Получаем статистику участий за указанный месяц
+        from apps.participation.models import Participation
+
+        monthly_stats = Participation.objects.filter(
+            report_date__range=(start_date, end_date)
+        ).aggregate(
+            total=Count('id'),
+            unique_children=Count('child', distinct=True),
+            unique_events=Count('event', distinct=True)
+        )
+
+        # Форматируем название месяца
+        from django.utils import timezone
+        temp_date = timezone.datetime(year, month, 1)
+        month_name = temp_date.strftime('%B')
+
+        return JsonResponse({
+            'success': True,
+            'month': month,
+            'year': year,
+            'month_display': f"{month_name} {year}",
+            'stats': {
+                'total': monthly_stats['total'] or 0,
+                'unique_children': monthly_stats['unique_children'] or 0,
+                'unique_events': monthly_stats['unique_events'] or 0
+            }
+        })
+
+
 

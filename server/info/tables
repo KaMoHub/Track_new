@@ -1,0 +1,339 @@
+F:\Deploy\Track_new\.venv\Scripts\python.exe F:\Deploy\Track_new\show_tables.py
+=== Структура базы данных ===
+
+[Таблица: django_migrations]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+app                  varchar(255)    NOT NULL
+name                 varchar(255)    NOT NULL
+applied              datetime        NOT NULL
+
+Внешние ключи: отсутствуют
+
+[Таблица: sqlite_sequence]
+--------------------------------------------------
+name                                 NULL
+seq                                  NULL
+
+Внешние ключи: отсутствуют
+
+[Таблица: django_content_type]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+app_label            varchar(100)    NOT NULL
+model                varchar(100)    NOT NULL
+
+Внешние ключи: отсутствуют
+
+[Таблица: auth_group_permissions]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+group_id             INTEGER         NOT NULL
+permission_id        INTEGER         NOT NULL
+
+Внешние ключи:
+  id -> permission_id.NO ACTION
+  id -> group_id.NO ACTION
+
+[Таблица: auth_permission]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+content_type_id      INTEGER         NOT NULL
+codename             varchar(100)    NOT NULL
+name                 varchar(255)    NOT NULL
+
+Внешние ключи:
+  id -> content_type_id.NO ACTION
+
+[Таблица: auth_group]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+name                 varchar(150)    NOT NULL
+
+Внешние ключи: отсутствуют
+
+[Таблица: accounts_user]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+password             varchar(128)    NOT NULL
+last_login           datetime        NULL
+is_superuser         bool            NOT NULL
+username             varchar(150)    NOT NULL
+first_name           varchar(150)    NOT NULL
+last_name            varchar(150)    NOT NULL
+email                varchar(254)    NOT NULL
+is_staff             bool            NOT NULL
+is_active            bool            NOT NULL
+date_joined          datetime        NOT NULL
+role                 varchar(20)     NOT NULL
+
+Внешние ключи: отсутствуют
+
+[Таблица: accounts_user_groups]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+user_id              bigint          NOT NULL
+group_id             INTEGER         NOT NULL
+
+Внешние ключи:
+  id -> group_id.NO ACTION
+  id -> user_id.NO ACTION
+
+[Таблица: accounts_user_user_permissions]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+user_id              bigint          NOT NULL
+permission_id        INTEGER         NOT NULL
+
+Внешние ключи:
+  id -> permission_id.NO ACTION
+  id -> user_id.NO ACTION
+
+[Таблица: accounts_useractionlog]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+action_type          varchar(50)     NOT NULL
+table_name           varchar(50)     NOT NULL
+record_id            INTEGER         NULL
+description          TEXT            NOT NULL
+ip_address           char(39)        NULL
+created_at           datetime        NOT NULL
+user_id              bigint          NOT NULL
+
+Внешние ключи:
+  id -> user_id.NO ACTION
+
+[Таблица: accounts_userprofile]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+academic_year_start  INTEGER         NOT NULL
+academic_year_end    INTEGER         NOT NULL
+default_level_filter varchar(50)     NOT NULL
+items_per_page       INTEGER         NOT NULL
+created_at           datetime        NOT NULL
+updated_at           datetime        NOT NULL
+user_id              bigint          NOT NULL
+
+Внешние ключи:
+  id -> user_id.NO ACTION
+
+[Таблица: django_admin_log]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+object_id            TEXT            NULL
+object_repr          varchar(200)    NOT NULL
+action_flag          smallint unsigned NOT NULL
+change_message       TEXT            NOT NULL
+content_type_id      INTEGER         NULL
+user_id              bigint          NOT NULL
+action_time          datetime        NOT NULL
+
+Внешние ключи:
+  id -> user_id.NO ACTION
+  id -> content_type_id.NO ACTION
+
+[Таблица: django_session]
+--------------------------------------------------
+session_key          varchar(40)     NOT NULL   (PK)
+session_data         TEXT            NOT NULL
+expire_date          datetime        NOT NULL
+
+Внешние ключи: отсутствуют
+
+[Таблица: children_child]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+fio                  varchar(255)    NOT NULL
+date_of_birth        date            NOT NULL
+gender               varchar(1)      NOT NULL
+created_at           datetime        NOT NULL
+updated_at           datetime        NOT NULL
+
+Внешние ключи: отсутствуют
+
+[Таблица: children_direction]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+name                 varchar(100)    NOT NULL
+
+Внешние ключи: отсутствуют
+
+[Таблица: children_childlist]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+child_id             bigint          NOT NULL
+
+Внешние ключи:
+  id -> child_id.NO ACTION
+
+[Таблица: children_teacher]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+user_id              bigint          NOT NULL
+
+Внешние ключи:
+  id -> user_id.NO ACTION
+
+[Таблица: children_studioenrollment]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+academic_year        varchar(9)      NOT NULL
+enrollment_date      date            NOT NULL
+child_id             bigint          NOT NULL
+direction_id         bigint          NOT NULL
+studio_id            bigint          NOT NULL
+teacher_id           bigint          NOT NULL
+
+Внешние ключи:
+  id -> teacher_id.NO ACTION
+  id -> studio_id.NO ACTION
+  id -> direction_id.NO ACTION
+  id -> child_id.NO ACTION
+
+[Таблица: events_resulttype]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+code                 varchar(50)     NOT NULL
+name                 varchar(255)    NOT NULL
+description          TEXT            NOT NULL
+
+Внешние ключи: отсутствуют
+
+[Таблица: participation_participation]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+custom_result        varchar(255)    NOT NULL
+report_date          date            NOT NULL
+created_at           datetime        NOT NULL
+updated_at           datetime        NOT NULL
+child_id             bigint          NOT NULL
+created_by_id        bigint          NULL
+enrollment_id        bigint          NOT NULL
+event_id             bigint          NOT NULL
+result_type_id       bigint          NULL
+
+Внешние ключи:
+  id -> result_type_id.NO ACTION
+  id -> event_id.NO ACTION
+  id -> enrollment_id.NO ACTION
+  id -> created_by_id.NO ACTION
+  id -> child_id.NO ACTION
+
+[Таблица: participation_uploadedfile]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+original_name        varchar(255)    NOT NULL
+stored_name          varchar(255)    NOT NULL
+file_path            varchar(500)    NOT NULL
+file_size            bigint          NOT NULL
+mime_type            varchar(100)    NOT NULL
+upload_date          datetime        NOT NULL
+participation_id     bigint          NOT NULL
+uploaded_by_id       bigint          NULL
+
+Внешние ключи:
+  id -> uploaded_by_id.NO ACTION
+  id -> participation_id.NO ACTION
+
+[Таблица: children_studio]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+direction_id         bigint          NOT NULL
+name                 varchar(100)    NOT NULL
+
+Внешние ключи:
+  id -> direction_id.NO ACTION
+
+[Таблица: children_teacherstudioaccess]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+granted_at           datetime        NOT NULL
+granted_by_id        bigint          NULL
+studio_id            bigint          NOT NULL
+teacher_id           bigint          NOT NULL
+
+Внешние ключи:
+  id -> teacher_id.NO ACTION
+  id -> studio_id.NO ACTION
+  id -> granted_by_id.NO ACTION
+
+[Таблица: events_event]
+--------------------------------------------------
+id                   INTEGER         NOT NULL   (PK)
+name                 varchar(255)    NOT NULL
+description          TEXT            NOT NULL
+level                varchar(20)     NOT NULL
+application_deadline date            NULL
+result_date          date            NULL
+is_active            bool            NOT NULL
+sort_order           INTEGER         NOT NULL
+created_at           datetime        NOT NULL
+updated_at           datetime        NOT NULL
+created_by_id        bigint          NULL
+is_offline           bool            NOT NULL
+
+Внешние ключи:
+  id -> created_by_id.NO ACTION
+
+=== Дерево зависимостей ===
+
+'permission_id' <-
+  auth_group_permissions (id -> NO ACTION)
+  accounts_user_user_permissions (id -> NO ACTION)
+
+'group_id' <-
+  auth_group_permissions (id -> NO ACTION)
+  accounts_user_groups (id -> NO ACTION)
+
+'content_type_id' <-
+  auth_permission (id -> NO ACTION)
+  django_admin_log (id -> NO ACTION)
+
+'user_id' <-
+  accounts_user_groups (id -> NO ACTION)
+  accounts_user_user_permissions (id -> NO ACTION)
+  accounts_useractionlog (id -> NO ACTION)
+  accounts_userprofile (id -> NO ACTION)
+  django_admin_log (id -> NO ACTION)
+  children_teacher (id -> NO ACTION)
+
+'child_id' <-
+  children_childlist (id -> NO ACTION)
+  children_studioenrollment (id -> NO ACTION)
+  participation_participation (id -> NO ACTION)
+
+'teacher_id' <-
+  children_studioenrollment (id -> NO ACTION)
+  children_teacherstudioaccess (id -> NO ACTION)
+
+'studio_id' <-
+  children_studioenrollment (id -> NO ACTION)
+  children_teacherstudioaccess (id -> NO ACTION)
+
+'direction_id' <-
+  children_studioenrollment (id -> NO ACTION)
+  children_studio (id -> NO ACTION)
+
+'result_type_id' <-
+  participation_participation (id -> NO ACTION)
+
+'event_id' <-
+  participation_participation (id -> NO ACTION)
+
+'enrollment_id' <-
+  participation_participation (id -> NO ACTION)
+
+'created_by_id' <-
+  participation_participation (id -> NO ACTION)
+  events_event (id -> NO ACTION)
+
+'uploaded_by_id' <-
+  participation_uploadedfile (id -> NO ACTION)
+
+'participation_id' <-
+  participation_uploadedfile (id -> NO ACTION)
+
+'granted_by_id' <-
+  children_teacherstudioaccess (id -> NO ACTION)
+
+Process finished with exit code 0

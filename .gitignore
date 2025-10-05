@@ -185,3 +185,4 @@ track
 track/settings.py
 track/settings.py~
 track/wsgi.py
+*.*~

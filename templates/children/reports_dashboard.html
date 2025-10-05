@@ -7,14 +7,56 @@
 
 {% block page_actions %}
     <div class="btn-group">
-        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-            <i class="bi bi-calendar"></i> {{ current_month|date:"F" }} {{ current_year }}
+        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                id="monthDropdownButton">
+            <i class="bi bi-calendar"></i>
+            <span id="currentMonthDisplay">
+                {% if current_month and current_year %}
+                    <!-- Показываем месяц на русском при первом открытии -->
+                    {% with month_names="Январь Февраль Март Апрель Май Июнь Июль Август Сентябрь Октябрь Ноябрь Декабрь" %}
+                    {% with month_list=month_names.split %}
+                        {{ month_list|slice:current_month|last }} {{ current_year }}
+                    {% endwith %}
+                    {% endwith %}
+                {% else %}
+                    <!-- Если нет данных, показываем только год -->
+                    {{ current_year }}
+                {% endif %}
+            </span>
         </button>
-        <ul class="dropdown-menu">
-            <li><span class="dropdown-item-text">Статистика за месяц:</span></li>
-            <li><span class="dropdown-item-text">Участий: {{ monthly_stats.total|default:0 }}</span></li>
-            <li><span class="dropdown-item-text">Детей: {{ monthly_stats.unique_children|default:0 }}</span></li>
-            <li><span class="dropdown-item-text">Конкурсов: {{ monthly_stats.unique_events|default:0 }}</span></li>
+        <ul class="dropdown-menu p-3" style="min-width: 300px;">
+            <div class="mb-3">
+                <label for="monthSelect" class="form-label small">Выберите месяц:</label>
+                <select class="form-select form-select-sm" id="monthSelect">
+                    <option value="1" {% if current_month == 1 %}selected{% endif %}>Январь</option>
+                    <option value="2" {% if current_month == 2 %}selected{% endif %}>Февраль</option>
+                    <option value="3" {% if current_month == 3 %}selected{% endif %}>Март</option>
+                    <option value="4" {% if current_month == 4 %}selected{% endif %}>Апрель</option>
+                    <option value="5" {% if current_month == 5 %}selected{% endif %}>Май</option>
+                    <option value="6" {% if current_month == 6 %}selected{% endif %}>Июнь</option>
+                    <option value="7" {% if current_month == 7 %}selected{% endif %}>Июль</option>
+                    <option value="8" {% if current_month == 8 %}selected{% endif %}>Август</option>
+                    <option value="9" {% if current_month == 9 %}selected{% endif %}>Сентябрь</option>
+                    <option value="10" {% if current_month == 10 %}selected{% endif %}>Октябрь</option>
+                    <option value="11" {% if current_month == 11 %}selected{% endif %}>Ноябрь</option>
+                    <option value="12" {% if current_month == 12 %}selected{% endif %}>Декабрь</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="yearSelect" class="form-label small">Год:</label>
+                <input type="number" class="form-control form-control-sm" id="yearSelect"
+                       value="{{ current_year }}" min="2020" max="2030">
+            </div>
+            <div class="d-grid">
+                <button type="button" class="btn btn-primary btn-sm" id="applyMonthFilter">
+                    <i class="bi bi-check-lg"></i> Применить
+                </button>
+            </div>
+            <hr class="my-2">
+            <li><span class="dropdown-item-text fw-bold">Статистика за месяц:</span></li>
+            <li><span class="dropdown-item-text" id="statsTotal">Участий: {{ monthly_stats.total|default:0 }}</span></li>
+            <li><span class="dropdown-item-text" id="statsChildren">Детей: {{ monthly_stats.unique_children|default:0 }}</span></li>
+            <li><span class="dropdown-item-text" id="statsEvents">Конкурсов: {{ monthly_stats.unique_events|default:0 }}</span></li>
         </ul>
     </div>
 {% endblock %}
@@ -27,7 +69,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h4 class="card-title">{{ monthly_stats.total|default:0 }}</h4>
+                        <h4 class="card-title" id="cardTotal">{{ monthly_stats.total|default:0 }}</h4>
                         <p class="card-text">Участий за месяц</p>
                     </div>
                     <div class="align-self-center">
@@ -43,7 +85,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h4 class="card-title">{{ monthly_stats.unique_children|default:0 }}</h4>
+                        <h4 class="card-title" id="cardChildren">{{ monthly_stats.unique_children|default:0 }}</h4>
                         <p class="card-text">Уникальных детей</p>
                     </div>
                     <div class="align-self-center">
@@ -59,7 +101,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h4 class="card-title">{{ monthly_stats.unique_events|default:0 }}</h4>
+                        <h4 class="card-title" id="cardEvents">{{ monthly_stats.unique_events|default:0 }}</h4>
                         <p class="card-text">Конкурсов</p>
                     </div>
                     <div class="align-self-center">
@@ -198,7 +240,145 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Обработка кнопок выгрузки отчетов
+    const monthSelect = document.getElementById('monthSelect');
+    const yearSelect = document.getElementById('yearSelect');
+    const applyMonthFilter = document.getElementById('applyMonthFilter');
+    const currentMonthDisplay = document.getElementById('currentMonthDisplay');
+    const monthDropdownButton = document.getElementById('monthDropdownButton');
+
+    // Словарь для русских названий месяцев
+    const monthNames = {
+        1: 'Январь', 2: 'Февраль', 3: 'Март', 4: 'Апрель',
+        5: 'Май', 6: 'Июнь', 7: 'Июль', 8: 'Август',
+        9: 'Сентябрь', 10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
+    };
+
+    // Элементы для обновления статистики в dropdown
+    const statsTotal = document.getElementById('statsTotal');
+    const statsChildren = document.getElementById('statsChildren');
+    const statsEvents = document.getElementById('statsEvents');
+
+    // Карточки статистики на главной странице
+    const cardTotal = document.querySelector('.card.bg-primary .card-title');
+    const cardChildren = document.querySelector('.card.bg-success .card-title');
+    const cardEvents = document.querySelector('.card.bg-info .card-title');
+
+    // Функция для форматирования отображения месяца
+    function formatMonthDisplay(month, year) {
+        if (month && year) {
+            return `${monthNames[month]} ${year}`;
+        } else {
+            return `${year}`; // Только год, если месяц не выбран
+        }
+    }
+
+    // Функция для обновления статистики через AJAX
+    function updateMonthlyStats(month, year) {
+        const url = `{% url 'children:monthly_stats_api' %}?month=${month}&year=${year}`;
+
+        // Показываем индикатор загрузки
+        showLoadingState(true);
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Обновляем отображение месяца в кнопке
+                    currentMonthDisplay.textContent = formatMonthDisplay(data.month, data.year);
+
+                    // Обновляем статистику в dropdown
+                    statsTotal.textContent = `Участий: ${data.stats.total}`;
+                    statsChildren.textContent = `Детей: ${data.stats.unique_children}`;
+                    statsEvents.textContent = `Конкурсов: ${data.stats.unique_events}`;
+
+                    // Обновляем карточки статистики на главной странице
+                    if (cardTotal) cardTotal.textContent = data.stats.total;
+                    if (cardChildren) cardChildren.textContent = data.stats.unique_children;
+                    if (cardEvents) cardEvents.textContent = data.stats.unique_events;
+
+                    // Показываем уведомление об успехе
+                    showToast(`Статистика за ${formatMonthDisplay(data.month, data.year)} обновлена`, 'success');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching monthly stats:', error);
+                showToast('Ошибка при обновлении статистики', 'error');
+            })
+            .finally(() => {
+                showLoadingState(false);
+            });
+    }
+
+    // Функция для показа/скрытия индикатора загрузки
+    function showLoadingState(show) {
+        const cards = document.querySelectorAll('.card .card-title');
+        cards.forEach(card => {
+            if (show) {
+                card.classList.add('updating');
+            } else {
+                card.classList.remove('updating');
+            }
+        });
+    }
+
+    // Функция для показа уведомлений
+    function showToast(message, type = 'info') {
+        // Создаем простое уведомление
+        const alertClass = type === 'success' ? 'alert-success' :
+                          type === 'error' ? 'alert-danger' : 'alert-info';
+
+        const toast = document.createElement('div');
+        toast.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 1060; min-width: 300px;';
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        document.body.appendChild(toast);
+
+        // Автоматически удаляем через 3 секунды
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 3000);
+    }
+
+    // Обработчик применения фильтра
+    applyMonthFilter.addEventListener('click', function() {
+        const month = monthSelect.value;
+        const year = yearSelect.value;
+
+        if (month && year) {
+            updateMonthlyStats(month, year);
+
+            // Закрываем dropdown
+            const dropdown = bootstrap.Dropdown.getInstance(monthDropdownButton);
+            if (dropdown) {
+                dropdown.hide();
+            }
+        }
+    });
+
+    // Автоматическое обновление статистики при изменении параметров в формах отчетов
+    const report2Month = document.getElementById('month_2');
+    const report2Year = document.getElementById('year_2');
+
+    if (report2Month && report2Year) {
+        [report2Month, report2Year].forEach(element => {
+            element.addEventListener('change', function() {
+                // Обновляем значения в основном селекторе
+                monthSelect.value = report2Month.value;
+                yearSelect.value = report2Year.value;
+
+                // Обновляем статистику
+                updateMonthlyStats(report2Month.value, report2Year.value);
+            });
+        });
+    }
+
+    // Обработка кнопок выгрузки отчетов (существующий код)
     document.querySelectorAll('.download-report').forEach(button => {
         button.addEventListener('click', function() {
             const reportId = this.dataset.reportId;
@@ -221,6 +401,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Инициализация - при первом открытии показываем только год
+    // Это уже работает благодаря шаблону Django
 });
 </script>
 {% endblock %}

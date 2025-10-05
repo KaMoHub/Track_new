@@ -40,6 +40,8 @@ def get_project_structure(root_dir, output_file, ignore_dirs=None, ignore_files=
                     continue
                 if os.path.isfile(item_path) and item in ignore_files:
                     continue
+                if '~' in item:
+                    continue
                 filtered_items.append(item)
 
             for index, item in enumerate(filtered_items):

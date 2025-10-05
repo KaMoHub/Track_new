@@ -55,4 +55,6 @@ urlpatterns = [
     path('reports/competition/', views.DirectionCompetitionReportView.as_view(), name='competition_report'),
     path('reports/monthly-achievements/', views.MonthlyAchievementsReportView.as_view(), name='monthly_achievements_report'),
     path('reports/semester-achievements/', views.SemesterAchievementsReportView.as_view(), name='semester_achievements_report'),
+
+    path('reports/monthly-stats/', views.MonthlyStatsAPIView.as_view(), name='monthly_stats_api'),
 ]

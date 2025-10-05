@@ -1,5 +1,6 @@
 # apps/children/views.py
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
+from django.views import View
 from django.shortcuts import render
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -1419,6 +1420,9 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
 
     def get_participation_form(self, participation):
         """Определяем форму участия (можно доработать логику)"""
+        if participation.event and hasattr(participation.event, 'is_offline'):
+            return 'Очная' if participation.event.is_offline else 'Дистанционная'
+
         # Здесь можно добавить логику определения формы участия
         # Например, по названию события или другим признакам
         event_name = participation.event.name.lower() if participation.event else ''
@@ -1522,6 +1526,19 @@ class ReportsDashboardView(LoginRequiredMixin, TemplateView):
         # Статистика для отображения на дашборде
         from datetime import datetime, date, timedelta
         from django.db.models import Count
+
+        # Получаем параметры месяца из запроса или используем текущий
+        try:
+            month = int(self.request.GET.get('month', 0))
+            year = int(self.request.GET.get('year', 0))
+        except (ValueError, TypeError):
+            month = year = 0
+
+        # Если параметры невалидны, используем текущий месяц
+        today = date.today()
+        if not (1 <= month <= 12) or not (2020 <= year <= 2100):
+            month = today.month
+            year = today.year
 
         # Текущая дата
         today = date.today()
@@ -2067,4 +2084,58 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
         worksheet['A3'].value = f'Всего педагогов: {records_count}'
         worksheet['A3'].font = Font(size=10)
         worksheet['A3'].alignment = Alignment(horizontal='center')
+
+
+class MonthlyStatsAPIView(LoginRequiredMixin, View):
+    """API для получения статистики за выбранный месяц"""
+
+    def get(self, request, *args, **kwargs):
+        month = request.GET.get('month')
+        year = request.GET.get('year')
+
+        try:
+            month = int(month)
+            year = int(year)
+        except (ValueError, TypeError):
+            # Если некорректные параметры, используем текущий месяц
+            today = date.today()
+            month = today.month
+            year = today.year
+
+        # Определяем даты начала и конца месяца
+        start_date = date(year, month, 1)
+        if month == 12:
+            end_date = date(year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end_date = date(year, month + 1, 1) - timedelta(days=1)
+
+        # Получаем статистику участий за указанный месяц
+        from apps.participation.models import Participation
+
+        monthly_stats = Participation.objects.filter(
+            report_date__range=(start_date, end_date)
+        ).aggregate(
+            total=Count('id'),
+            unique_children=Count('child', distinct=True),
+            unique_events=Count('event', distinct=True)
+        )
+
+        # Форматируем название месяца
+        from django.utils import timezone
+        temp_date = timezone.datetime(year, month, 1)
+        month_name = temp_date.strftime('%B')
+
+        return JsonResponse({
+            'success': True,
+            'month': month,
+            'year': year,
+            'month_display': f"{month_name} {year}",
+            'stats': {
+                'total': monthly_stats['total'] or 0,
+                'unique_children': monthly_stats['unique_children'] or 0,
+                'unique_events': monthly_stats['unique_events'] or 0
+            }
+        })
+
+
 
