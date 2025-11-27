@@ -7,9 +7,14 @@
 {% block page_title %}Список детей{% endblock %}
 
 {% block page_actions %}
+<div class="btn-group" role="group">
     <a href="{% url 'children:create' %}" class="btn btn-primary">
         <i class="bi bi-person-plus"></i> Добавить ребенка
     </a>
+    <a href="{% url 'children:upload' %}" class="btn btn-success">
+        <i class="bi bi-upload"></i> Загрузить из Эксел
+    </a>
+</div>
 {% endblock %}
 
 {% block content %}
