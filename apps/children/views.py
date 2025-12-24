@@ -48,6 +48,20 @@ def get_accessible_participations(user):
     from apps.participation.models import Participation
     return Participation.objects.filter(enrollment__in=accessible_enrollments)
 
+def get_participations_for_period(user, start_date, end_date):
+    """Единый источник Participation для всех отчетов."""
+    accessible_participations = get_accessible_participations(user)
+    return accessible_participations.filter(
+        report_date__range=(start_date, end_date)
+    ).select_related(
+        'child',
+        'enrollment__direction',
+        'enrollment__studio',
+        'enrollment__teacher',
+        'event',
+        'result_type',
+    )
+
 
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from django.http import HttpResponse
@@ -1356,49 +1370,105 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
     """Генерация отчета 'Достижения детей за месяц'"""
 
     def get(self, request, *args, **kwargs):
-        # Получаем параметры из запроса (месяц и год)
-        month = request.GET.get('month', datetime.now().month)
-        year = request.GET.get('year', datetime.now().year)
+        # # Получаем параметры из запроса (месяц и год)
+        # month = request.GET.get('month', datetime.now().month)
+        # year = request.GET.get('year', datetime.now().year)
+        #
+        # try:
+        #     month = int(month)
+        #     year = int(year)
+        # except (ValueError, TypeError):
+        #     current_date = datetime.now()
+        #     month = current_date.month
+        #     year = current_date.year
+        #
+        # # Определяем даты начала и конца месяца
+        # start_date = date(year, month, 1)
+        # if month == 12:
+        #     end_date = date(year + 1, 1, 1) - timedelta(days=1)
+        # else:
+        #     end_date = date(year, month + 1, 1) - timedelta(days=1)
+        #
+        # # Название месяца для заголовка
+        # month_names = {
+        #     1: 'ЯНВАРЬ', 2: 'ФЕВРАЛЬ', 3: 'МАРТ', 4: 'АПРЕЛЬ',
+        #     5: 'МАЙ', 6: 'ИЮНЬ', 7: 'ИЮЛЬ', 8: 'АВГУСТ',
+        #     9: 'СЕНТЯБРЬ', 10: 'ОКТЯБРЬ', 11: 'НОЯБРЬ', 12: 'ДЕКАБРЬ'
+        # }
+        # month_name = month_names.get(month, '')
 
-        try:
-            month = int(month)
-            year = int(year)
-        except (ValueError, TypeError):
-            current_date = datetime.now()
-            month = current_date.month
-            year = current_date.year
+        # 1) Пытаемся взять произвольный период
+        start_date_str = request.GET.get('start_date')
+        end_date_str = request.GET.get('end_date')
 
-        # Определяем даты начала и конца месяца
-        start_date = date(year, month, 1)
-        if month == 12:
-            end_date = date(year + 1, 1, 1) - timedelta(days=1)
+        if start_date_str and end_date_str:
+            # формат: YYYY-MM-DD из <input type="date">
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                # если формат кривой – откатываемся к месячному режиму
+                start_date = end_date = None
         else:
-            end_date = date(year, month + 1, 1) - timedelta(days=1)
+            start_date = end_date = None
 
-        # Название месяца для заголовка
-        month_names = {
-            1: 'ЯНВАРЬ', 2: 'ФЕВРАЛЬ', 3: 'МАРТ', 4: 'АПРЕЛЬ',
-            5: 'МАЙ', 6: 'ИЮНЬ', 7: 'ИЮЛЬ', 8: 'АВГУСТ',
-            9: 'СЕНТЯБРЬ', 10: 'ОКТЯБРЬ', 11: 'НОЯБРЬ', 12: 'ДЕКАБРЬ'
-        }
-        month_name = month_names.get(month, '')
+        period_title = ''  # текст для заголовка
+
+        # 2) Если произвольный период не задан – работаем как раньше (месяц/год)
+        if not start_date or not end_date:
+            month = request.GET.get('month', datetime.now().month)
+            year = request.GET.get('year', datetime.now().year)
+
+            try:
+                month = int(month)
+                year = int(year)
+            except (ValueError, TypeError):
+                current_date = datetime.now()
+                month = current_date.month
+                year = current_date.year
+
+            start_date = date(year, month, 1)
+            if month == 12:
+                end_date = date(year + 1, 1, 1) - timedelta(days=1)
+            else:
+                end_date = date(year, month + 1, 1) - timedelta(days=1)
+
+            month_names = {
+                1: 'ЯНВАРЬ', 2: 'ФЕВРАЛЬ', 3: 'МАРТ', 4: 'АПРЕЛЬ',
+                5: 'МАЙ', 6: 'ИЮНЬ', 7: 'ИЮЛЬ', 8: 'АВГУСТ',
+                9: 'СЕНТЯБРЬ', 10: 'ОКТЯБРЬ', 11: 'НОЯБРЬ', 12: 'ДЕКАБРЬ'
+            }
+            month_name = month_names.get(month, '')
+            period_title = f'ЗА {month_name} {year}'
+            filename_suffix = f'{month:02d}_{year}'
+        else:
+            # режим произвольного периода
+            period_title = f'ЗА ПЕРИОД {start_date.strftime("%d.%m.%Y")} - {end_date.strftime("%d.%m.%Y")}'
+            filename_suffix = f'{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}'
 
         # Получаем данные участий за указанный месяц с фильтрацией по доступным студиям
         from apps.participation.models import Participation
 
-        # Получаем доступные участия
-        accessible_participations = get_accessible_participations(request.user)
+        # # Получаем доступные участия
+        # accessible_participations = get_accessible_participations(request.user)
+        #
+        # # Фильтруем по периоду
+        # participations = accessible_participations.filter(
+        #     report_date__range=(start_date, end_date)
+        # ).select_related(
+        #     'child',
+        #     'enrollment__direction',
+        #     'enrollment__studio',
+        #     'enrollment__teacher',
+        #     'event',
+        #     'result_type'
+        # ).order_by(
+        #     'enrollment__direction__name',
+        #     'child__fio'
+        # )
 
-        # Фильтруем по периоду
-        participations = accessible_participations.filter(
-            report_date__range=(start_date, end_date)
-        ).select_related(
-            'child',
-            'enrollment__direction',
-            'enrollment__studio',
-            'enrollment__teacher',
-            'event',
-            'result_type'
+        participations = get_participations_for_period(
+            request.user, start_date, end_date
         ).order_by(
             'enrollment__direction__name',
             'child__fio'
@@ -1466,7 +1536,9 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
 
         # Создаем HttpResponse с Excel файлом
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = f'attachment; filename="dostizheniya_{month:02d}_{year}.xlsx"'
+        response['Content-Disposition'] = (
+            f'attachment; filename="dostizheniya_{filename_suffix}.xlsx"'
+        )
 
         with pd.ExcelWriter(response, engine='openpyxl') as writer:
             # Основной лист с данными
@@ -1477,7 +1549,7 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
             worksheet = writer.sheets['Достижения']
 
             # Добавляем заголовок
-            self.add_report_header(worksheet, month_name, year, len(report_data))
+            self.add_report_header(worksheet, period_title, len(report_data))
 
             # Форматируем таблицу
             self.format_worksheet(worksheet, df)
@@ -1499,21 +1571,22 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
         else:
             return 'Очная'
 
-    def add_report_header(self, worksheet, month_name, year, records_count):
+    def add_report_header(self, worksheet, period_title, records_count):
         """Добавляем заголовок отчета"""
+        """Добавляем заголовок отчета (поддерживает месяц или произвольный период)"""
         from openpyxl.styles import Font, Alignment
 
         worksheet.insert_rows(1, 3)
 
         worksheet.merge_cells('A1:I1')
         title_cell = worksheet['A1']
-        title_cell.value = f'ДОСТИЖЕНИЯ ДЕТЕЙ'
+        title_cell.value = 'ДОСТИЖЕНИЯ ДЕТЕЙ'
         title_cell.font = Font(size=14, bold=True)
         title_cell.alignment = Alignment(horizontal='center')
 
         worksheet.merge_cells('A2:I2')
         period_cell = worksheet['A2']
-        period_cell.value = f'ЗА {month_name} {year}'
+        period_cell.value = period_title
         period_cell.font = Font(size=12, bold=True)
         period_cell.alignment = Alignment(horizontal='center')
 
@@ -1562,7 +1635,6 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
                 cell.alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
                 cell.font = Font(name='Times New Roman', size=12)
                 cell.border = thin_border
-
 
 
 # apps/children/views.py (обновляем ReportsDashboardView)
@@ -1657,45 +1729,112 @@ class ReportsDashboardView(LoginRequiredMixin, TemplateView):
         return context
 
 
-
 # apps/children/views.py (добавляем новый класс отчета)
 class SemesterAchievementsReportView(LoginRequiredMixin, View):
     """Генерация отчета 'Достижения детей за квартал'"""
 
     def get(self, request, *args, **kwargs):
-        # Получаем параметры из запроса (квартал и год)
-        quarter = request.GET.get('quarter', '1')
-        year = request.GET.get('year', datetime.now().year)
+        # # Получаем параметры из запроса (квартал и год)
+        # quarter = request.GET.get('quarter', '1')
+        # year = request.GET.get('year', datetime.now().year)
+        #
+        # try:
+        #     quarter = int(quarter)
+        #     year = int(year)
+        # except (ValueError, TypeError):
+        #     current_date = datetime.now()
+        #     year = current_date.year
+        #     quarter = (current_date.month - 1) // 3 + 1
+        #
+        # # Определяем даты начала и конца квартала
+        # if quarter == 1:
+        #     start_date = date(year, 1, 1)
+        #     end_date = date(year, 3, 31)
+        #     quarter_name = "1 квартал"
+        #     months = [1, 2, 3]
+        # elif quarter == 2:
+        #     start_date = date(year, 4, 1)
+        #     end_date = date(year, 6, 30)
+        #     quarter_name = "2 квартал"
+        #     months = [4, 5, 6]
+        # elif quarter == 3:
+        #     start_date = date(year, 7, 1)
+        #     end_date = date(year, 9, 30)
+        #     quarter_name = "3 квартал"
+        #     months = [7, 8, 9]
+        # else:
+        #     start_date = date(year, 10, 1)
+        #     end_date = date(year, 12, 31)
+        #     quarter_name = "4 квартал"
+        #     months = [10, 11, 12]
 
-        try:
-            quarter = int(quarter)
-            year = int(year)
-        except (ValueError, TypeError):
-            current_date = datetime.now()
-            year = current_date.year
-            quarter = (current_date.month - 1) // 3 + 1
+        # 1) Пытаемся взять произвольный период (как в отчете 2)
+        start_date_str = request.GET.get("start_date")
+        end_date_str = request.GET.get("end_date")
 
-        # Определяем даты начала и конца квартала
-        if quarter == 1:
-            start_date = date(year, 1, 1)
-            end_date = date(year, 3, 31)
-            quarter_name = "1 квартал"
-            months = [1, 2, 3]
-        elif quarter == 2:
-            start_date = date(year, 4, 1)
-            end_date = date(year, 6, 30)
-            quarter_name = "2 квартал"
-            months = [4, 5, 6]
-        elif quarter == 3:
-            start_date = date(year, 7, 1)
-            end_date = date(year, 9, 30)
-            quarter_name = "3 квартал"
-            months = [7, 8, 9]
+        start_date = end_date = None
+        period_title = ""
+        period_is_range = False
+
+        if start_date_str and end_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+                period_is_range = True
+            except ValueError:
+                start_date = end_date = None
+                period_is_range = False
+
+        # 2) Если период не задан или некорректен — работаем по кварталу (старое поведение)
+        if not start_date or not end_date:
+            quarter = request.GET.get("quarter", 1)
+            year = request.GET.get("year", datetime.now().year)
+
+            try:
+                quarter = int(quarter)
+                year = int(year)
+            except (ValueError, TypeError):
+                current_date = datetime.now()
+                year = current_date.year
+                quarter = (current_date.month - 1) // 3 + 1
+
+            if quarter == 1:
+                start_date = date(year, 1, 1)
+                end_date = date(year, 3, 31)
+                quarter_name = "1 квартал"
+                months = [1, 2, 3]
+            elif quarter == 2:
+                start_date = date(year, 4, 1)
+                end_date = date(year, 6, 30)
+                quarter_name = "2 квартал"
+                months = [4, 5, 6]
+            elif quarter == 3:
+                start_date = date(year, 7, 1)
+                end_date = date(year, 9, 30)
+                quarter_name = "3 квартал"
+                months = [7, 8, 9]
+            else:
+                start_date = date(year, 10, 1)
+                end_date = date(year, 12, 31)
+                quarter_name = "4 квартал"
+                months = [10, 11, 12]
+
+            period_title = f"за {quarter_name} {year} год"
+            filename_suffix = f"kvartal_{quarter}_{year}"
         else:
-            start_date = date(year, 10, 1)
-            end_date = date(year, 12, 31)
-            quarter_name = "4 квартал"
-            months = [10, 11, 12]
+            # режим произвольного диапазона
+            # месяцы нужно построить из диапазона (для группировки по месяцам)
+            months = sorted(
+                {m for m in range(start_date.month, end_date.month + 1)}
+            )
+            period_title = (
+                f"за период {start_date.strftime('%d.%m.%Y')} - "
+                f"{end_date.strftime('%d.%m.%Y')}"
+            )
+            filename_suffix = (
+                f"period_{start_date.strftime('%Y%m%d')}_"
+                f"{end_date.strftime('%Y%m%d')}"
+            )
 
         # Уровни конкурсов (правильные ключи из модели)
         levels = [
@@ -1724,19 +1863,23 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
         # Получаем данные участий за указанный квартал с фильтрацией по доступным студиям
         from apps.participation.models import Participation
 
-        # Получаем доступные участия
-        accessible_participations = get_accessible_participations(request.user)
+        # # Получаем доступные участия
+        # accessible_participations = get_accessible_participations(request.user)
+        #
+        # # Фильтруем по периоду
+        # participations = accessible_participations.filter(
+        #     report_date__range=(start_date, end_date)
+        # ).select_related(
+        #     'child',
+        #     'enrollment__direction',
+        #     'enrollment__studio',
+        #     'enrollment__teacher',
+        #     'event',
+        #     'result_type'
+        # ).order_by('child__fio', 'report_date')
 
-        # Фильтруем по периоду
-        participations = accessible_participations.filter(
-            report_date__range=(start_date, end_date)
-        ).select_related(
-            'child',
-            'enrollment__direction',
-            'enrollment__studio',
-            'enrollment__teacher',
-            'event',
-            'result_type'
+        participations = get_participations_for_period(
+            request.user, start_date, end_date
         ).order_by('child__fio', 'report_date')
 
         # Создаем структуру данных для отчета
@@ -1834,7 +1977,10 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
 
         # Создаем HttpResponse с Excel файлом
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = f'attachment; filename="dostizheniya_kvartal_{quarter}_{year}.xlsx"'
+        # response['Content-Disposition'] = f'attachment; filename="dostizheniya_kvartal_{quarter}_{year}.xlsx"'
+        response["Content-Disposition"] = (
+            f'attachment; filename="dostizheniya_{filename_suffix}.xlsx"'
+        )
 
         with pd.ExcelWriter(response, engine='openpyxl') as writer:
             df.to_excel(writer, sheet_name='Достижения за квартал', index=False, startrow=6, header=False)
@@ -1846,7 +1992,7 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
                 for row_num in range(worksheet.max_row, total_rows, -1):
                     worksheet.delete_rows(row_num)
 
-            self.add_report_header(worksheet, quarter_name, year, len(rows))
+            self.add_report_header(worksheet, period_title, len(rows))
             self.create_complex_header(worksheet, months, month_names, levels, level_names, len(df.columns))
             self.format_quarter_worksheet(worksheet, df, months, month_names, levels, level_names)
 
@@ -2074,7 +2220,7 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
         except:
             pass
 
-    def add_report_header(self, worksheet, quarter_name, year, records_count):
+    def add_report_header(self, worksheet, period_title, records_count):
         """Добавляем заголовок отчета"""
         from openpyxl.styles import Font, Alignment
 
@@ -2090,7 +2236,7 @@ class SemesterAchievementsReportView(LoginRequiredMixin, View):
         worksheet['A1'].alignment = Alignment(horizontal='center')
 
         worksheet.merge_cells('A2:BA2')
-        worksheet['A2'].value = f'за {quarter_name} {year} год'
+        worksheet['A2'].value = f'за {period_title} год'
         worksheet['A2'].font = Font(size=12, bold=True)
         worksheet['A2'].alignment = Alignment(horizontal='center')
 
