@@ -215,20 +215,55 @@ class ParticipationCreateView(BaseParticipationView, CreateView):
         # Проверяем, не существует ли уже такое участие (до сохранения)
         child = form.instance.child
         event = form.cleaned_data['event']
+        current_user = self.request.user
+        print(f"DEBUG: Проверяем дубликат - enrollment={enrollment.id}, event={event.id}, created_by={current_user.id}")
+        # Проверяем существование участия
+        existing = Participation.objects.filter(
+            enrollment=enrollment,
+            event=event,
+            created_by=current_user
+        ).exists()
+
+        print(f"DEBUG: Дубликат найден: {existing}")
+
+
+        print(f"DEBUG: Начало валидации участия для ребенка {child.fio} в конкурсе {event.name}")
 
         # Используем транзакцию для обеспечения целостности данных
         try:
             with transaction.atomic():
+                print(f"DEBUG: Начало транзакции")
                 # Проверяем существование участия
-                if Participation.objects.filter(child=child, event=event).exists():
+                if Participation.objects.filter(enrollment=enrollment, event=event, created_by=self.request.user).exists():
+                    print(f"DEBUG: Участие уже существует")
                     messages.error(
                         self.request,
                         f'Ребенок {child.fio} уже участвует в конкурсе "{event.name}"'
                     )
                     return self.form_invalid(form)
 
-                # Сохраняем участие
-                response = super().form_valid(form)
+                file_upload = self.request.FILES.get('file_upload')
+                if file_upload.size > 100 * 1024 * 1024:  # 100MB
+                    messages.error(
+                        self.request,
+                        f'Файл слишком большой. Размер: {file_upload.size / 1024 / 1024:.2f} MB. Максимум: 100 MB'
+                    )
+                    return self.form_invalid(form)
+
+
+                try:
+                    print(f"DEBUG: Начало сохранения участия")
+                    # Сохраняем участие
+                    response = super().form_valid(form)
+                except Exception as e:
+                    print(f"DEBUG: Ошибка при сохранении участия: {e}")
+                    messages.warning(
+                        self.request,
+                        f'Участие не было сохранено из-за ошибки: {str(e)}'
+                    )
+                    return self.form_invalid(form)
+
+
 
                 # Обрабатываем загрузку файла, если она есть
                 file_upload = self.request.FILES.get('file_upload')
@@ -311,6 +346,7 @@ class ParticipationCreateView(BaseParticipationView, CreateView):
             raise e
 
     def form_invalid(self, form):
+        print(f"DEBUG: Форма невалидна. Ошибки: {form.errors}")
         messages.error(
             self.request,
             'Пожалуйста, исправьте ошибки в форме.'
@@ -335,6 +371,19 @@ class ParticipationUpdateView(BaseParticipationView, UpdateView):
             }
 
         return context
+    # def dispatch(self, request, *args, **kwargs):
+    #     """Проверка прав доступа перед выполнением действия"""
+    #     # Проверяем доступ перед выполнением действия
+    #     user = request.user
+    #     participation = self.get_object()
+    #
+    #     has_access = self.check_user_access(user, participation)
+    #     if not has_access:
+    #         messages.error(request, 'У вас нет прав для редактирования этого участия.')
+    #         return HttpResponseRedirect(reverse_lazy('participation:detail', kwargs={'pk': participation.pk}))
+    #
+    #     return super().dispatch(request, *args, **kwargs)
+
     def dispatch(self, request, *args, **kwargs):
         """Проверка прав доступа перед выполнением действия"""
         # Проверяем доступ перед выполнением действия
@@ -342,6 +391,12 @@ class ParticipationUpdateView(BaseParticipationView, UpdateView):
         participation = self.get_object()
 
         has_access = self.check_user_access(user, participation)
+
+        # Дополнительно проверяем, что пользователь — создатель записи
+        if participation.created_by != user:
+            messages.error(request, 'У вас нет прав для редактирования этой записи.')
+            return HttpResponseRedirect(reverse_lazy('participation:detail', kwargs={'pk': participation.pk}))
+
         if not has_access:
             messages.error(request, 'У вас нет прав для редактирования этого участия.')
             return HttpResponseRedirect(reverse_lazy('participation:detail', kwargs={'pk': participation.pk}))
@@ -373,11 +428,19 @@ class ParticipationUpdateView(BaseParticipationView, UpdateView):
         current_object = self.get_object()
 
         if Participation.objects.filter(
-            child=child, event=event
+            enrollment=enrollment, event=event, created_by=self.request.user
         ).exclude(pk=current_object.pk).exists():
             messages.error(
                 self.request,
                 f'Ребенок {child.fio} уже участвует в конкурсе "{event.name}"'
+            )
+            return self.form_invalid(form)
+
+        file_upload = self.request.FILES.get('file_upload')
+        if file_upload.size > 100 * 1024 * 1024:  # 100MB
+            messages.error(
+                self.request,
+                f'Файл слишком большой. Размер: {file_upload.size / 1024 / 1024:.2f} MB. Максимум: 100 MB'
             )
             return self.form_invalid(form)
 
@@ -418,10 +481,24 @@ class ParticipationUpdateView(BaseParticipationView, UpdateView):
         )
         return super().form_invalid(form)
 
+
+
 class ParticipationDeleteView(BaseParticipationView, DeleteView):
     """Удаление участия"""
     template_name = 'participation/participation_confirm_delete.html'
     success_url = reverse_lazy('participation:list')
+
+    # def dispatch(self, request, *args, **kwargs):
+    #     # Проверяем доступ перед выполнением действия
+    #     user = request.user
+    #     participation = self.get_object()
+    #
+    #     has_access = self.check_user_access(user, participation)
+    #     if not has_access:
+    #         messages.error(request, 'У вас нет прав для удаления этого участия.')
+    #         return HttpResponseRedirect(reverse_lazy('participation:detail', kwargs={'pk': participation.pk}))
+    #
+    #     return super().dispatch(request, *args, **kwargs)
 
     def dispatch(self, request, *args, **kwargs):
         # Проверяем доступ перед выполнением действия
@@ -429,11 +506,18 @@ class ParticipationDeleteView(BaseParticipationView, DeleteView):
         participation = self.get_object()
 
         has_access = self.check_user_access(user, participation)
+
+        # Дополнительно проверяем, что пользователь — создатель записи
+        if participation.created_by != user:
+            messages.error(request, 'У вас нет прав для удаления этой записи.')
+            return HttpResponseRedirect(reverse_lazy('participation:detail', kwargs={'pk': participation.pk}))
+
         if not has_access:
             messages.error(request, 'У вас нет прав для удаления этого участия.')
             return HttpResponseRedirect(reverse_lazy('participation:detail', kwargs={'pk': participation.pk}))
 
         return super().dispatch(request, *args, **kwargs)
+
 
     def delete(self, request, *args, **kwargs):
         messages.success(
@@ -441,4 +525,6 @@ class ParticipationDeleteView(BaseParticipationView, DeleteView):
             f'Участие ребенка {self.get_object().child.fio} в конкурсе "{self.get_object().event.name}" успешно удалено.'
         )
         return super().delete(request, *args, **kwargs)
+
+
 
