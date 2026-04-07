@@ -243,7 +243,7 @@ class ParticipationCreateView(BaseParticipationView, CreateView):
                     return self.form_invalid(form)
 
                 file_upload = self.request.FILES.get('file_upload')
-                if file_upload.size > 100 * 1024 * 1024:  # 100MB
+                if file_upload and file_upload.size > 100 * 1024 * 1024:  # 100MB
                     messages.error(
                         self.request,
                         f'Файл слишком большой. Размер: {file_upload.size / 1024 / 1024:.2f} MB. Максимум: 100 MB'
@@ -437,7 +437,8 @@ class ParticipationUpdateView(BaseParticipationView, UpdateView):
             return self.form_invalid(form)
 
         file_upload = self.request.FILES.get('file_upload')
-        if file_upload.size > 100 * 1024 * 1024:  # 100MB
+        print(file_upload)
+        if file_upload and file_upload.size > 100 * 1024 * 1024:  # 100MB
             messages.error(
                 self.request,
                 f'Файл слишком большой. Размер: {file_upload.size / 1024 / 1024:.2f} MB. Максимум: 100 MB'
