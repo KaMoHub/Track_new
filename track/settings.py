@@ -56,7 +56,7 @@ DEBUG = True
 
 # Разрешаем хост Render и localhost для разработки
 # В конец settings.py или найдите существующую настройку
-ALLOWED_HOSTS = ['cdomir.pythonanywhere.com', '127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['cdo-data.ru', 'www.cdo-data.ru', '127.0.0.1', 'localhost', '46.173.28.2']
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
