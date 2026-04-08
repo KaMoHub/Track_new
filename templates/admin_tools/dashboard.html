@@ -1,0 +1,587 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Админ-инструменты{% endblock %}
+
+{% block page_title %}Админ-инструменты{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-tools"></i> Управление базой данных
+                </h5>
+                <hr>
+
+                <ul class="nav nav-tabs" id="adminTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="db-tab" data-bs-toggle="tab" data-bs-target="#db" type="button" role="tab">
+                            📊 Структура БД
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="project-tab" data-bs-toggle="tab" data-bs-target="#project" type="button" role="tab">
+                            📁 Структура проекта
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="table-content-tab" data-bs-toggle="tab" data-bs-target="#table-content" type="button" role="tab">
+                            📋 Содержимое таблиц
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="search-tab" data-bs-toggle="tab" data-bs-target="#search" type="button" role="tab">
+                            🔍 Поиск ссылок по ребенку
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="replace-tab" data-bs-toggle="tab" data-bs-target="#replace" type="button" role="tab">
+                            🔄 Замена ссылок
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content p-3 border border-top-0 rounded-bottom">
+                    <!-- Вкладка 1: Структура БД -->
+                    <div class="tab-pane fade show active" id="db" role="tabpanel">
+                        <div class="mb-3">
+                            <button class="btn btn-primary btn-sm" id="loadDbBtn">
+                                <i class="bi bi-arrow-repeat"></i> Загрузить структуру БД
+                            </button>
+                            <button class="btn btn-secondary btn-sm" id="clearDbBtn">
+                                <i class="bi bi-eraser"></i> Очистить
+                            </button>
+                        </div>
+                        <pre id="dbContent" class="bg-light p-3 rounded" style="max-height: 550px; overflow: auto; font-family: monospace; font-size: 12px;">
+Нажмите "Загрузить структуру БД"
+                        </pre>
+                    </div>
+
+                    <!-- Вкладка 2: Структура проекта -->
+                    <div class="tab-pane fade" id="project" role="tabpanel">
+                        <div class="mb-3">
+                            <button class="btn btn-primary btn-sm" id="loadProjectBtn">
+                                <i class="bi bi-arrow-repeat"></i> Загрузить структуру проекта
+                            </button>
+                            <button class="btn btn-secondary btn-sm" id="clearProjectBtn">
+                                <i class="bi bi-eraser"></i> Очистить
+                            </button>
+                        </div>
+                        <pre id="projectContent" class="bg-light p-3 rounded" style="max-height: 550px; overflow: auto; font-family: monospace; font-size: 12px;">
+Нажмите "Загрузить структуру проекта"
+                        </pre>
+                    </div>
+
+                    <!-- Вкладка 3: Содержимое таблиц -->
+                    <div class="tab-pane fade" id="table-content" role="tabpanel">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Выберите таблицу:</label>
+                                <select id="tableSelect" class="form-select">
+                                    <option value="">-- Загрузка таблиц... --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 align-self-end">
+                                <button class="btn btn-primary btn-sm" id="loadTableData">
+                                    <i class="bi bi-download"></i> Загрузить
+                                </button>
+                                <button class="btn btn-success btn-sm" id="exportTableExcel" disabled>
+                                    <i class="bi bi-file-excel"></i> Выгрузить в Excel
+                                </button>
+                            </div>
+                        </div>
+                        <div id="tableInfo" class="alert alert-info">
+                            Выберите таблицу и нажмите "Загрузить"
+                        </div>
+                        <div class="table-responsive" style="max-height: 500px; overflow: auto;">
+                            <table class="table table-striped table-bordered table-sm" id="tableData">
+                                <thead>
+                                    <tr><th>Загрузка данных...</th></tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Вкладка 4: Поиск ссылок по ребенку -->
+                    <div class="tab-pane fade" id="search" role="tabpanel">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Выберите ребенка:</label>
+                                <select id="childSelect" class="form-select">
+                                    <option value="">-- Загрузка детей... --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 align-self-end">
+                                <button class="btn btn-primary btn-sm" id="searchLinksBtn">
+                                    <i class="bi bi-search"></i> Найти ссылки
+                                </button>
+                                <button class="btn btn-danger btn-sm" id="deleteChildBtn" disabled style="opacity: 0.6;">
+                                    <i class="bi bi-trash"></i> УДАЛИТЬ ребенка
+                                </button>
+                                <button class="btn btn-secondary btn-sm" id="clearSearchBtn">
+                                    <i class="bi bi-eraser"></i> Очистить
+                                </button>
+                            </div>
+                        </div>
+                        <div id="searchInfo" class="alert alert-info">
+                            Выберите ребенка и нажмите "Найти ссылки"
+                        </div>
+                        <pre id="searchResult" class="bg-light p-3 rounded" style="max-height: 500px; overflow: auto; font-family: monospace; font-size: 12px;">
+                    Нажмите "Найти ссылки"
+                        </pre>
+                    </div>
+
+                    <!-- Вкладка 5: Замена ссылок -->
+                    <div class="tab-pane fade" id="replace" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-warning text-dark">
+                                        <strong>📤 ИСТОЧНИК (откуда переносим)</strong>
+                                    </div>
+                                    <div class="card-body">
+                                        <label class="form-label">Выберите ребенка-ИСТОЧНИК:</label>
+                                        <select id="sourceChildSelect" class="form-select mb-3">
+                                            <option value="">-- Загрузка... --</option>
+                                        </select>
+                                        <button class="btn btn-info btn-sm" id="showSourceLinks">
+                                            <i class="bi bi-search"></i> Показать ссылки
+                                        </button>
+                                        <pre id="sourceLinksResult" class="bg-light p-2 mt-2 rounded" style="max-height: 300px; overflow: auto; font-family: monospace; font-size: 11px;">
+                    Нажмите "Показать ссылки"
+                                        </pre>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-success text-white">
+                                        <strong>📥 ПОЛУЧАТЕЛЬ (куда переносим)</strong>
+                                    </div>
+                                    <div class="card-body">
+                                        <label class="form-label">Выберите ребенка-ПОЛУЧАТЕЛЬ:</label>
+                                        <select id="targetChildSelect" class="form-select mb-3">
+                                            <option value="">-- Загрузка... --</option>
+                                        </select>
+                                        <button class="btn btn-info btn-sm" id="showTargetLinks">
+                                            <i class="bi bi-search"></i> Показать ссылки
+                                        </button>
+                                        <pre id="targetLinksResult" class="bg-light p-2 mt-2 rounded" style="max-height: 300px; overflow: auto; font-family: monospace; font-size: 11px;">
+                    Нажмите "Показать ссылки"
+                                        </pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-12 text-center">
+                                <button class="btn btn-danger btn-lg" id="replaceLinksBtn">
+                                    <i class="bi bi-arrow-left-right"></i> ПЕРЕНЕСТИ ССЫЛКИ (Заменить получателя на источник)
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="replaceInfo" class="alert alert-info mt-3">
+                            Выберите ребенка-ИСТОЧНИК и ребенка-ПОЛУЧАТЕЛЬ
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('loadDbBtn')?.addEventListener('click', function() {
+    const pre = document.getElementById('dbContent');
+    pre.textContent = 'Загрузка...';
+    fetch('/admin-dashboard/api/db-structure/')
+        .then(response => response.text())
+        .then(data => pre.textContent = data)
+        .catch(error => pre.textContent = 'Ошибка: ' + error);
+});
+
+document.getElementById('clearDbBtn')?.addEventListener('click', function() {
+    document.getElementById('dbContent').textContent = '';
+});
+
+document.getElementById('loadProjectBtn')?.addEventListener('click', function() {
+    const pre = document.getElementById('projectContent');
+    pre.textContent = 'Загрузка...';
+    fetch('/admin-dashboard/api/project-structure/')
+        .then(response => response.text())
+        .then(data => pre.textContent = data)
+        .catch(error => pre.textContent = 'Ошибка: ' + error);
+});
+
+document.getElementById('clearProjectBtn')?.addEventListener('click', function() {
+    document.getElementById('projectContent').textContent = '';
+});
+
+
+// Загрузка списка таблиц
+let currentTable = '';
+fetch('/admin-dashboard/api/tables/')
+    .then(response => response.json())
+    .then(tables => {
+        const select = document.getElementById('tableSelect');
+        select.innerHTML = '<option value="">-- Выберите таблицу --</option>';
+        tables.forEach(table => {
+            const option = document.createElement('option');
+            option.value = table;
+            option.textContent = table;
+            select.appendChild(option);
+        });
+    });
+
+// Загрузка данных таблицы
+document.getElementById('loadTableData')?.addEventListener('click', function() {
+    const tableName = document.getElementById('tableSelect').value;
+    if (!tableName) {
+        alert('Выберите таблицу!');
+        return;
+    }
+    currentTable = tableName;
+    document.getElementById('tableInfo').textContent = 'Загрузка...';
+    document.getElementById('exportTableExcel').disabled = false;
+
+    fetch(`/admin-dashboard/api/table-data/${encodeURIComponent(tableName)}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('tableInfo').textContent = 'Ошибка: ' + data.error;
+                return;
+            }
+            document.getElementById('tableInfo').textContent = `Таблица: ${tableName} | Всего записей: ${data.count}`;
+
+            const thead = document.querySelector('#tableData thead');
+            const tbody = document.querySelector('#tableData tbody');
+
+            let headerHtml = '<tr>';
+            data.columns.forEach(col => {
+                headerHtml += `<th>${col}</th>`;
+            });
+            headerHtml += '</tr>';
+            thead.innerHTML = headerHtml;
+
+            let bodyHtml = '';
+            data.rows.forEach(row => {
+                bodyHtml += '<tr>';
+                row.forEach(cell => {
+                    bodyHtml += `<td>${cell || ''}</td>`;
+                });
+                bodyHtml += '</tr>';
+            });
+            tbody.innerHTML = bodyHtml || '<tr><td colspan="100">Нет данных</td></tr>';
+        })
+        .catch(error => {
+            document.getElementById('tableInfo').textContent = 'Ошибка: ' + error;
+        });
+});
+
+// Экспорт в Excel
+document.getElementById('exportTableExcel')?.addEventListener('click', function() {
+    if (currentTable) {
+        window.location.href = `/admin-dashboard/export/${encodeURIComponent(currentTable)}/`;
+    }
+});
+
+
+// Загрузка списка детей
+let currentChildId = null;
+let currentChildFio = null;
+
+fetch('/admin-dashboard/api/children/')
+    .then(response => response.json())
+    .then(children => {
+        const select = document.getElementById('childSelect');
+        select.innerHTML = '<option value="">-- Выберите ребенка --</option>';
+        children.forEach(child => {
+            const option = document.createElement('option');
+            option.value = child.id;
+            option.textContent = child.display;
+            select.appendChild(option);
+        });
+    });
+
+// Поиск ссылок (GET вместо POST)
+document.getElementById('searchLinksBtn')?.addEventListener('click', function() {
+    const childId = document.getElementById('childSelect').value;
+    if (!childId) {
+        alert('Выберите ребенка!');
+        return;
+    }
+
+    currentChildId = childId;
+    const pre = document.getElementById('searchResult');
+    const deleteBtn = document.getElementById('deleteChildBtn');
+    pre.textContent = 'Поиск...';
+
+    fetch(`/admin-dashboard/api/search-links/?child_id=${childId}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            pre.textContent = 'Ошибка: ' + data.error;
+            return;
+        }
+
+        currentChildFio = data.child_fio;
+
+        let result = [];
+        result.push('='.repeat(120));
+        result.push(`🔍 ПОИСК ССЫЛОК НА РЕБЕНКА`);
+        result.push(`   ID: ${data.child_id}`);
+        result.push(`   ФИО: ${data.child_fio}`);
+        result.push(`   Дата рождения: ${data.child_birth}`);
+        result.push(`   Пол: ${data.child_gender}`);
+        result.push('='.repeat(120));
+
+        if (data.total_links === 0) {
+            result.push(`\n❌ Ссылок на ребенка не найдено`);
+            deleteBtn.disabled = false;
+            deleteBtn.style.opacity = '1';
+            document.getElementById('searchInfo').innerHTML = `<div class="alert alert-success">✅ Ссылок нет. Ребенка можно удалить. ID: ${data.child_id} - ${data.child_fio}</div>`;
+        } else {
+            result.push(`\n✅ Всего найдено ссылок: ${data.total_links}`);
+
+            for (const link of data.links) {
+                result.push(`\n${'='.repeat(120)}`);
+                result.push(`📋 ТАБЛИЦА: ${link.table}`);
+                result.push(`🔗 Поле-ссылка: ${link.column}`);
+                result.push(`📊 Найдено записей: ${link.count}`);
+                result.push(`${'='.repeat(120)}`);
+
+                for (let idx = 0; idx < link.records.length; idx++) {
+                    const record = link.records[idx];
+                    result.push(`\n  📝 Запись #${idx + 1}:`);
+                    result.push(`  ${'-'.repeat(100)}`);
+
+                    for (const [field, value] of Object.entries(record)) {
+                        // Ограничиваем длину значения
+                        let displayValue = value;
+                        if (displayValue.length > 80) {
+                            displayValue = displayValue.substring(0, 80) + '...';
+                        }
+                        result.push(`     ${field.padEnd(30)} = ${displayValue}`);
+                    }
+                    result.push(`  ${'-'.repeat(100)}`);
+                }
+            }
+
+            deleteBtn.disabled = true;
+            deleteBtn.style.opacity = '0.6';
+            document.getElementById('searchInfo').innerHTML = `<div class="alert alert-warning">⚠️ Есть ссылки! Удаление невозможно. Найдено ссылок: ${data.total_links} | ID: ${data.child_id} - ${data.child_fio}</div>`;
+        }
+
+        pre.textContent = result.join('\n');
+    })
+    .catch(error => {
+        pre.textContent = 'Ошибка: ' + error;
+    });
+});
+
+// Очистка
+document.getElementById('clearSearchBtn')?.addEventListener('click', function() {
+    document.getElementById('searchResult').textContent = 'Нажмите "Найти ссылки"';
+    document.getElementById('searchInfo').innerHTML = '<div class="alert alert-info">Выберите ребенка и нажмите "Найти ссылки"</div>';
+    document.getElementById('deleteChildBtn').disabled = true;
+    currentChildId = null;
+});
+
+// Удаление ребенка (GET)
+document.getElementById('deleteChildBtn')?.addEventListener('click', function() {
+    if (!currentChildId) {
+        alert('Сначала найдите ссылки на ребенка');
+        return;
+    }
+
+    if (!confirm(`Вы уверены, что хотите УДАЛИТЬ ребенка?\n\nID: ${currentChildId}\nФИО: ${currentChildFio}\n\n⚠️ ЭТО ДЕЙСТВИЕ НЕЛЬЗЯ БУДЕТ ОТМЕНИТЬ!`)) {
+        return;
+    }
+
+    fetch(`/admin-dashboard/api/delete-child/?child_id=${currentChildId}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Ошибка: ' + error);
+    });
+});
+
+// Загрузка детей для обеих вкладок
+let sourceChildId = null;
+let targetChildId = null;
+
+function loadChildrenForReplace() {
+    fetch('/admin-dashboard/api/children/')
+        .then(response => response.json())
+        .then(children => {
+            const sourceSelect = document.getElementById('sourceChildSelect');
+            const targetSelect = document.getElementById('targetChildSelect');
+
+            sourceSelect.innerHTML = '<option value="">-- Выберите ребенка --</option>';
+            targetSelect.innerHTML = '<option value="">-- Выберите ребенка --</option>';
+
+            children.forEach(child => {
+                const option1 = document.createElement('option');
+                option1.value = child.id;
+                option1.textContent = child.display;
+                sourceSelect.appendChild(option1);
+
+                const option2 = document.createElement('option');
+                option2.value = child.id;
+                option2.textContent = child.display;
+                targetSelect.appendChild(option2);
+            });
+        });
+}
+
+loadChildrenForReplace();
+
+// Показать ссылки источника (с детализацией)
+document.getElementById('showSourceLinks')?.addEventListener('click', function() {
+    sourceChildId = document.getElementById('sourceChildSelect').value;
+    if (!sourceChildId) {
+        alert('Выберите ребенка-ИСТОЧНИК!');
+        return;
+    }
+
+    const pre = document.getElementById('sourceLinksResult');
+    pre.textContent = 'Поиск...';
+
+    fetch(`/admin-dashboard/api/search-links/?child_id=${sourceChildId}`)
+        .then(response => response.json())
+        .then(data => {
+            let result = [];
+            result.push(`ID: ${data.child_id} | ФИО: ${data.child_fio} | Дата рождения: ${data.child_birth} | Пол: ${data.child_gender}`);
+            result.push(`Всего ссылок: ${data.total_links}`);
+            result.push('='.repeat(80));
+
+            if (data.total_links === 0) {
+                result.push('Ссылок не найдено');
+            } else {
+                for (const link of data.links) {
+                    result.push(`\n📋 ${link.table}.${link.column} → ${link.count} записей`);
+                    result.push('-'.repeat(50));
+                    for (let idx = 0; idx < link.records.length; idx++) {
+                        const record = link.records[idx];
+                        result.push(`  Запись #${idx + 1}:`);
+                        for (const [field, value] of Object.entries(record)) {
+                            let displayValue = value;
+                            if (displayValue.length > 60) {
+                                displayValue = displayValue.substring(0, 60) + '...';
+                            }
+                            result.push(`    ${field}: ${displayValue}`);
+                        }
+                    }
+                }
+            }
+            pre.textContent = result.join('\n');
+        });
+});
+
+// Показать ссылки получателя (с детализацией)
+document.getElementById('showTargetLinks')?.addEventListener('click', function() {
+    targetChildId = document.getElementById('targetChildSelect').value;
+    if (!targetChildId) {
+        alert('Выберите ребенка-ПОЛУЧАТЕЛЬ!');
+        return;
+    }
+
+    const pre = document.getElementById('targetLinksResult');
+    pre.textContent = 'Поиск...';
+
+    fetch(`/admin-dashboard/api/search-links/?child_id=${targetChildId}`)
+        .then(response => response.json())
+        .then(data => {
+            let result = [];
+            result.push(`ID: ${data.child_id} | ФИО: ${data.child_fio} | Дата рождения: ${data.child_birth} | Пол: ${data.child_gender}`);
+            result.push(`Всего ссылок: ${data.total_links}`);
+            result.push('='.repeat(80));
+
+            if (data.total_links === 0) {
+                result.push('Ссылок не найдено');
+            } else {
+                for (const link of data.links) {
+                    result.push(`\n📋 ${link.table}.${link.column} → ${link.count} записей`);
+                    result.push('-'.repeat(50));
+                    for (let idx = 0; idx < link.records.length; idx++) {
+                        const record = link.records[idx];
+                        result.push(`  Запись #${idx + 1}:`);
+                        for (const [field, value] of Object.entries(record)) {
+                            let displayValue = value;
+                            if (displayValue.length > 60) {
+                                displayValue = displayValue.substring(0, 60) + '...';
+                            }
+                            result.push(`    ${field}: ${displayValue}`);
+                        }
+                    }
+                }
+            }
+            pre.textContent = result.join('\n');
+        });
+});
+
+// Перенос ссылок
+document.getElementById('replaceLinksBtn')?.addEventListener('click', function() {
+    if (!sourceChildId || !targetChildId) {
+        alert('Сначала покажите ссылки для ИСТОЧНИКА и ПОЛУЧАТЕЛЯ!');
+        return;
+    }
+
+    if (sourceChildId === targetChildId) {
+        alert('Источник и получатель не могут совпадать!');
+        return;
+    }
+
+    if (!confirm(`Вы уверены, что хотите перенести ВСЕ ссылки?\n\nИСТОЧНИК (ID: ${sourceChildId})\nПОЛУЧАТЕЛЬ (ID: ${targetChildId})\n\nПродолжить?`)) {
+        return;
+    }
+
+    const info = document.getElementById('replaceInfo');
+    info.innerHTML = '<div class="alert alert-warning">Перенос выполняется...</div>';
+
+    fetch(`/admin-dashboard/api/replace-links/?source_id=${sourceChildId}&target_id=${targetChildId}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            info.innerHTML = `<div class="alert alert-danger">Ошибка: ${data.error}</div>`;
+            return;
+        }
+
+        let result = `✅ Перенос выполнен!\n`;
+        result += `📊 Обновлено записей: ${data.updated_count}\n`;
+        result += `⏭️ Пропущено (дубли): ${data.skipped_count}\n\n`;
+
+        if (data.updated_tables.length > 0) {
+            result += `📋 Результат по таблицам:\n${data.updated_tables.join('\n')}\n`;
+        }
+
+        if (data.skipped_details.length > 0) {
+            result += `\n⚠️ Пропущенные записи:\n${data.skipped_details.join('\n')}`;
+        }
+
+        info.innerHTML = `<div class="alert alert-success"><pre style="white-space: pre-wrap;">${result}</pre></div>`;
+
+        // Обновляем отображение ссылок
+        document.getElementById('showSourceLinks').click();
+        document.getElementById('showTargetLinks').click();
+    })
+});
+
+
+</script>
+{% endblock %}

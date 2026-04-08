@@ -11,6 +11,7 @@ urlpatterns = [
     path('children/', include('apps.children.urls')),  # Убедитесь, что путь правильный
     path('events/', include('apps.events.urls')),  # Добавляем events
     path('participation/', include('apps.participation.urls')),  # Добавляем participation
+    path('admin-dashboard/', include('apps.admin_tools.urls')),
 ]
 
 # Для разработки - обслуживание статических и медиа файлов
