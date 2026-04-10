@@ -736,6 +736,12 @@ class ChildCreateView(LoginRequiredMixin, CreateView):
     fields = ['fio', 'date_of_birth', 'gender']
     success_url = reverse_lazy('children:list')
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.role != 'admin':
+            messages.error(request, 'Доступ только для администраторов')
+            return HttpResponseRedirect(reverse_lazy('dashboard:home'))
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form):
         messages.success(self.request, 'Ребенок успешно добавлен.')
         return super().form_valid(form)
@@ -748,6 +754,12 @@ class ChildUpdateView(LoginRequiredMixin, UpdateView):
     fields = ['fio', 'date_of_birth', 'gender']
     success_url = reverse_lazy('children:list')
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.role != 'admin':
+            messages.error(request, 'Доступ только для администраторов')
+            return HttpResponseRedirect(reverse_lazy('dashboard:home'))
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form):
         messages.success(self.request, 'Информация о ребенке успешно обновлена.')
         return super().form_valid(form)
@@ -759,6 +771,12 @@ class ChildDeleteView(LoginRequiredMixin, DeleteView):
     model = Child
     template_name = 'children/child_confirm_delete.html'
     success_url = reverse_lazy('children:list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.role != 'admin':
+            messages.error(request, 'Доступ только для администраторов')
+            return HttpResponseRedirect(reverse_lazy('dashboard:home'))
+        return super().dispatch(request, *args, **kwargs)
 
     def get_deletion_error_message(self):
         return f'Невозможно удалить ребенка {self.object.fio}, так как он записан в одну или несколько студий. Сначала удалите записи в студиях.'
