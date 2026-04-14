@@ -475,6 +475,7 @@ def delete_child(request):
     }), content_type='application/json')
 
 @login_required
+@login_required
 def replace_links(request):
     """Переносит все ссылки из источника в получатель (пропуская дубли)"""
     if request.user.role != 'admin':
@@ -514,6 +515,9 @@ def replace_links(request):
     updated_tables = []
     skipped_details = []
 
+    # Для хранения неперенесённых enrollment_id (из-за дублей)
+    skipped_enrollments = []  # [(old_enrollment_id, studio_id, academic_year)]
+
     for table in tables:
         table_name = table[0]
         if table_name in exclude_tables:
@@ -544,7 +548,6 @@ def replace_links(request):
             col_names = [col[1] for col in columns]
 
             # Определяем, есть ли в таблице unique_together поля (для StudioEnrollment)
-            # Это специфичная проверка для таблицы children_studioenrollment
             is_enrollment = (table_name == 'children_studioenrollment')
 
             for row in rows:
@@ -563,6 +566,14 @@ def replace_links(request):
                     existing = cursor.fetchone()
 
                     if existing:
+                        # Запоминаем старый enrollment_id для последующего перенаправления участий
+                        old_enrollment_id = row_dict.get('id')
+                        skipped_enrollments.append({
+                            'old_id': old_enrollment_id,
+                            'studio_id': row_dict.get('studio_id'),
+                            'academic_year': row_dict.get('academic_year'),
+                            'new_enrollment_id': existing[0]
+                        })
                         skipped_count += 1
                         skipped_details.append(
                             f"{table_name}: child_id={source_id} → {target_id} (дубль: studio_id={row_dict.get('studio_id')}, academic_year={row_dict.get('academic_year')})")
@@ -584,6 +595,36 @@ def replace_links(request):
         except Exception as e:
             pass
 
+    # ========== ДОПОЛНИТЕЛЬНАЯ ЛОГИКА: перенаправляем участия в конкурсах ==========
+    participation_updated = 0
+    participation_skipped = 0
+
+    for skipped in skipped_enrollments:
+        old_enrollment_id = skipped['old_id']
+        new_enrollment_id = skipped['new_enrollment_id']
+
+        try:
+            # Находим все участия, которые ссылаются на старый enrollment_id
+            cursor.execute("""
+                SELECT id FROM participation_participation 
+                WHERE enrollment_id = ?
+            """, (old_enrollment_id,))
+            participations = cursor.fetchall()
+
+            if participations:
+                # Обновляем enrollment_id на новый
+                cursor.execute("""
+                    UPDATE participation_participation 
+                    SET enrollment_id = ? 
+                    WHERE enrollment_id = ?
+                """, (new_enrollment_id, old_enrollment_id))
+                participation_updated += cursor.rowcount
+                skipped_details.append(
+                    f"participation_participation: перенаправлено {cursor.rowcount} участий со старой записи в студии ID={old_enrollment_id} на новую ID={new_enrollment_id}")
+        except Exception as e:
+            participation_skipped += 1
+            skipped_details.append(f"participation_participation: ошибка при перенаправлении - {str(e)}")
+
     conn.commit()
     conn.close()
 
@@ -591,6 +632,7 @@ def replace_links(request):
         'success': True,
         'updated_count': updated_count,
         'skipped_count': skipped_count,
+        'participation_updated': participation_updated,
         'updated_tables': updated_tables,
         'skipped_details': skipped_details
     }), content_type='application/json')
