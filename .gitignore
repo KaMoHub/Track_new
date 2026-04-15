@@ -60,6 +60,7 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+*.sqlite3
 
 # Flask stuff:
 instance/
@@ -187,4 +188,8 @@ track/settings.py~
 track/wsgi.py
 *.*~
 Administration/
+
+static/
+staticfiles/
+
 
