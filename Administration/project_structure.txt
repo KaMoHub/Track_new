@@ -3,6 +3,7 @@
 
 ├── Administration/
 │   ├── admin_bd.py (52025 bytes)
+│   ├── database_structure.txt (15280 bytes)
 │   ├── list_user.py (930 bytes)
 │   └── project_structure.txt (0 bytes)
 ├── LICENSE (1084 bytes)
@@ -21,6 +22,16 @@
 │   │   ├── tests.py (63 bytes)
 │   │   ├── urls.py (351 bytes)
 │   │   └── views.py (2620 bytes)
+│   ├── admin_tools/
+│   │   ├── __init__.py (0 bytes)
+│   │   ├── admin.py (66 bytes)
+│   │   ├── apps.py (216 bytes)
+│   │   ├── migrations/
+│   │   │   └── __init__.py (0 bytes)
+│   │   ├── models.py (60 bytes)
+│   │   ├── tests.py (63 bytes)
+│   │   ├── urls.py (852 bytes)
+│   │   └── views.py (22858 bytes)
 │   ├── children/
 │   │   ├── __init__.py (85 bytes)
 │   │   ├── admin.py (1857 bytes)
@@ -32,9 +43,7 @@
 │   │   │   └── __init__.py (0 bytes)
 │   │   ├── models.py (10008 bytes)
 │   │   ├── urls.py (3515 bytes)
-│   │   ├── views.py (110107 bytes)
-│   │   ├── views_22сент.py (55776 bytes)
-│   │   └── views_23сент.py (56676 bytes)
+│   │   └── views.py (111100 bytes)
 │   ├── core/
 │   │   ├── __init__.py (0 bytes)
 │   │   ├── admin.py (66 bytes)
@@ -100,7 +109,7 @@
 │       ├── tests.py (63 bytes)
 │       └── views.py (66 bytes)
 ├── build.sh (265 bytes)
-├── db.sqlite3 (1523712 bytes)
+├── db.sqlite3 (1826816 bytes)
 ├── info.txt (1571 bytes)
 ├── manage.py (683 bytes)
 ├── media/
@@ -202,16 +211,18 @@
 │   │   ├── login.html (1567 bytes)
 │   │   ├── profile.html (1878 bytes)
 │   │   └── register.html (1799 bytes)
+│   ├── admin_tools/
+│   │   └── dashboard.html (28815 bytes)
 │   ├── base/
 │   │   ├── footer.html (510 bytes)
 │   │   ├── header.html (1361 bytes)
-│   │   └── sidebar.html (2599 bytes)
+│   │   └── sidebar.html (2795 bytes)
 │   ├── base.html (2876 bytes)
 │   ├── children/
 │   │   ├── child_confirm_delete.html (1815 bytes)
-│   │   ├── child_detail.html (12296 bytes)
+│   │   ├── child_detail.html (14712 bytes)
 │   │   ├── child_form.html (3917 bytes)
-│   │   ├── child_list.html (12946 bytes)
+│   │   ├── child_list.html (13847 bytes)
 │   │   ├── child_list_1.html (5564 bytes)
 │   │   ├── childlist_list.html (12366 bytes)
 │   │   ├── direction_confirm_delete.html (3492 bytes)
@@ -229,7 +240,7 @@
 │   │   ├── teacher_confirm_delete.html (3443 bytes)
 │   │   └── upload_form.html (5649 bytes)
 │   ├── dashboard/
-│   │   ├── home.html (7136 bytes)
+│   │   ├── home.html (7858 bytes)
 │   │   └── map.html (2516 bytes)
 │   ├── events/
 │   │   ├── add_participants.html (14223 bytes)
@@ -253,9 +264,13 @@
 │       ├── participation_form.html (8746 bytes)
 │       ├── participation_list.html (15011 bytes)
 │       └── report_form.html (6268 bytes)
-└── track/
+├── track/
+│   ├── __init__.py (0 bytes)
+│   ├── asgi.py (403 bytes)
+│   ├── settings.py (5395 bytes)
+│   ├── urls.py (985 bytes)
+│   └── wsgi.py (403 bytes)
+└── utils/
     ├── __init__.py (0 bytes)
-    ├── asgi.py (403 bytes)
-    ├── settings.py (5350 bytes)
-    ├── urls.py (920 bytes)
-    └── wsgi.py (403 bytes)
+    ├── db_structure.py (0 bytes)
+    └── project_structure.py (0 bytes)

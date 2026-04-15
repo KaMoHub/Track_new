@@ -678,23 +678,36 @@ class ChildListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         queryset = super().get_queryset()
 
-        # Поиск
-        search_query = self.request.GET.get('search')
-        if search_query:
-            queryset = queryset.filter(fio__icontains=search_query)
+        # Поиск по отдельным полям
+        last_name = self.request.GET.get('last_name', '').strip()
+        first_name = self.request.GET.get('first_name', '').strip()
+        patronymic = self.request.GET.get('patronymic', '').strip()
+
+        if last_name:
+            queryset = queryset.filter(last_name__icontains=last_name)
+        if first_name:
+            queryset = queryset.filter(first_name__icontains=first_name)
+        if patronymic:
+            queryset = queryset.filter(patronymic__icontains=patronymic)
 
         # Сортировка
-        sort_field = self.request.GET.get('sort', 'fio')  # По умолчанию сортировка по ФИО
-        if sort_field in ['fio', 'date_of_birth', 'gender', 'age']:
+        sort_field = self.request.GET.get('sort', 'last_name')
+        if sort_field in ['last_name', 'first_name', 'date_of_birth', 'gender']:
             queryset = queryset.order_by(sort_field)
-        elif sort_field in ['-fio', '-date_of_birth', '-gender', '-age']:
+        elif sort_field in ['-last_name', '-first_name', '-date_of_birth', '-gender']:
             queryset = queryset.order_by(sort_field)
+        else:
+            queryset = queryset.order_by('last_name', 'first_name')
 
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['current_sort'] = self.request.GET.get('sort', 'fio')
+        context['current_sort'] = self.request.GET.get('sort', 'last_name')
+        # Добавляем текущие значения поиска в контекст
+        context['search_last_name'] = self.request.GET.get('last_name', '')
+        context['search_first_name'] = self.request.GET.get('first_name', '')
+        context['search_patronymic'] = self.request.GET.get('patronymic', '')
         return context
 
 
@@ -733,7 +746,8 @@ class ChildCreateView(LoginRequiredMixin, CreateView):
     """Создание ребенка"""
     model = Child
     template_name = 'children/child_form.html'
-    fields = ['fio', 'date_of_birth', 'gender']
+    # fields = ['fio', 'date_of_birth', 'gender']
+    fields = ['last_name', 'first_name', 'patronymic', 'date_of_birth', 'gender']
     success_url = reverse_lazy('children:list')
 
     def dispatch(self, request, *args, **kwargs):
@@ -751,7 +765,8 @@ class ChildUpdateView(LoginRequiredMixin, UpdateView):
     """Редактирование ребенка"""
     model = Child
     template_name = 'children/child_form.html'
-    fields = ['fio', 'date_of_birth', 'gender']
+    # fields = ['fio', 'date_of_birth', 'gender']
+    fields = ['last_name', 'first_name', 'patronymic', 'date_of_birth', 'gender']
     success_url = reverse_lazy('children:list')
 
     def dispatch(self, request, *args, **kwargs):

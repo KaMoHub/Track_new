@@ -13,7 +13,7 @@
         <i class="bi bi-person-plus"></i> Добавить ребенка
     </a>
     <a href="{% url 'children:upload' %}" class="btn btn-success">
-        <i class="bi bi-upload"></i> Загрузить из Эксел
+        <i class="bi bi-upload"></i> Загрузить из Excel
     </a>
 </div>
 {% endif %}
@@ -26,20 +26,38 @@
         <div class="card mb-4">
             <div class="card-body">
                 <form method="get" class="row g-3 align-items-end">
-                    <div class="col-md-8">
-                        <label for="search" class="form-label">Поиск по ФИО</label>
+                    <div class="col-md-3">
+                        <label for="search_last_name" class="form-label">Фамилия</label>
                         <input type="text"
                                class="form-control"
-                               id="search"
-                               name="search"
-                               placeholder="Введите ФИО ребенка..."
-                               value="{{ request.GET.search }}">
+                               id="search_last_name"
+                               name="last_name"
+                               placeholder="Введите фамилию..."
+                               value="{{ request.GET.last_name }}">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <label for="search_first_name" class="form-label">Имя</label>
+                        <input type="text"
+                               class="form-control"
+                               id="search_first_name"
+                               name="first_name"
+                               placeholder="Введите имя..."
+                               value="{{ request.GET.first_name }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="search_patronymic" class="form-label">Отчество</label>
+                        <input type="text"
+                               class="form-control"
+                               id="search_patronymic"
+                               name="patronymic"
+                               placeholder="Введите отчество..."
+                               value="{{ request.GET.patronymic }}">
+                    </div>
+                    <div class="col-md-3">
                         <button type="submit" class="btn btn-primary me-2">
                             <i class="bi bi-search"></i> Найти
                         </button>
-                        {% if request.GET.search %}
+                        {% if request.GET.last_name or request.GET.first_name or request.GET.patronymic %}
                             <a href="{% url 'children:list' %}" class="btn btn-outline-secondary">
                                 <i class="bi bi-x-circle"></i> Сбросить
                             </a>
@@ -71,13 +89,13 @@
                             <thead>
                                 <tr>
                                     <th class="sortable">
-                                        <a href="?sort={% if current_sort == 'fio' %}-{% endif %}fio{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}"
+                                        <a href="?sort={% if current_sort == 'last_name' %}-{% endif %}last_name{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}"
                                            class="text-decoration-none text-dark d-flex align-items-center justify-content-between">
-                                            <span>ФИО</span>
+                                            <span>Фамилия</span>
                                             <span class="sort-icons">
-                                                {% if current_sort == 'fio' %}
+                                                {% if current_sort == 'last_name' %}
                                                     <i class="bi bi-arrow-up"></i>
-                                                {% elif current_sort == '-fio' %}
+                                                {% elif current_sort == '-last_name' %}
                                                     <i class="bi bi-arrow-down"></i>
                                                 {% else %}
                                                     <i class="bi bi-arrow-down-up text-muted"></i>
@@ -85,6 +103,22 @@
                                             </span>
                                         </a>
                                     </th>
+                                    <th class="sortable">
+                                        <a href="?sort={% if current_sort == 'first_name' %}-{% endif %}first_name{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}"
+                                           class="text-decoration-none text-dark d-flex align-items-center justify-content-between">
+                                            <span>Имя</span>
+                                            <span class="sort-icons">
+                                                {% if current_sort == 'first_name' %}
+                                                    <i class="bi bi-arrow-up"></i>
+                                                {% elif current_sort == '-first_name' %}
+                                                    <i class="bi bi-arrow-down"></i>
+                                                {% else %}
+                                                    <i class="bi bi-arrow-down-up text-muted"></i>
+                                                {% endif %}
+                                            </span>
+                                        </a>
+                                    </th>
+                                    <th>Отчество</th>
                                     <th class="sortable">
                                         <a href="?sort={% if current_sort == 'date_of_birth' %}-{% endif %}date_of_birth{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}"
                                            class="text-decoration-none text-dark d-flex align-items-center justify-content-between">
@@ -101,14 +135,6 @@
                                         </a>
                                     </th>
                                     <th>Возраст</th>
-                                    <!--
-                                    <th>
-                                        <span class="d-flex align-items-center justify-content-between text-dark">
-                                            <span>Возраст</span>
-                                            <i class="bi bi-arrow-down-up text-muted ms-1" title="Сортировка по дате рождения"></i>
-                                        </span>
-                                    </th>
-                                    -->
                                     <th class="sortable">
                                         <a href="?sort={% if current_sort == 'gender' %}-{% endif %}gender{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}"
                                            class="text-decoration-none text-dark d-flex align-items-center justify-content-between">
@@ -130,7 +156,9 @@
                             <tbody>
                                 {% for child in children %}
                                     <tr>
-                                        <td>{{ child.fio }}</td>
+                                        <td>{{ child.last_name }}</td>
+                                        <td>{{ child.first_name }}</td>
+                                        <td>{{ child.patronymic|default:"—" }}</td>
                                         <td>{{ child.date_of_birth|date:"d.m.Y" }}</td>
                                         <td>{{ child.age }} лет</td>
                                         <td>

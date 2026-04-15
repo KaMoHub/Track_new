@@ -11,6 +11,7 @@ from django.http import HttpResponseRedirect
 from django.utils import timezone
 from .models import Event, ResultType
 import pandas as pd
+from django import forms
 
 from .forms import EventForm  # Импортируем нашу форму
 
@@ -28,34 +29,27 @@ class EventListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Event.objects.filter(is_active=True).order_by('sort_order', 'name')
+        status_filter = self.request.GET.get('status', 'published')
 
-        # # Фильтрация по доступу в зависимости от роли пользователя
-        # if hasattr(user, 'role'):
-        #     if user.role == 'teacher':
-        #         # Для педагогов - только их конкурсы
-        #         try:
-        #             teacher = Teacher.objects.get(user=user)
-        #             # Получаем конкурсы, в которых участвуют дети этого педагога
-        #             accessible_participations = Participation.objects.filter(
-        #                 enrollment__teacher=teacher
-        #             ).values_list('event_id', flat=True)
-        #             queryset = queryset.filter(id__in=accessible_participations)
-        #         except Teacher.DoesNotExist:
-        #             queryset = queryset.none()
-        #         except Exception:
-        #             queryset = queryset.none()
-        #     elif user.role in ['methodist', 'admin']:
-        #         # Для методистов и админов - все конкурсы
-        #         pass
-        #     else:
-        #         # Для других ролей - пустой список
-        #         queryset = queryset.none()
-        # else:
-        #     # Для пользователей без роли - пустой список
-        #     queryset = queryset.none()
+        # Базовая выборка
+        queryset = Event.objects.all()
 
-        # Фильтры
+        if status_filter == 'published':
+            # Все видят все опубликованные конкурсы
+            queryset = queryset.filter(status='published')
+        else:
+            # Вкладка "На утверждении/Черновики"
+            if user.role == 'teacher':
+                # Педагог видит только свои конкурсы со статусом pending или draft
+                queryset = queryset.filter(
+                    created_by=user,
+                    status__in=['pending', 'draft']
+                )
+            else:
+                # Методист/админ видит все конкурсы со статусом pending или draft
+                queryset = queryset.filter(status__in=['pending', 'draft'])
+
+        # Остальные фильтры
         level = self.request.GET.get('level')
         search = self.request.GET.get('search')
 
@@ -63,20 +57,18 @@ class EventListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(level=level)
         if search:
             queryset = queryset.filter(
-                Q(name__icontains=search) |
-                Q(description__icontains=search)
+                Q(name__iregex=search) |
+                Q(description__iregex=search)
             )
 
         # Сортировка
         sort_by = self.request.GET.get('sort', 'name')
         sort_order = self.request.GET.get('order', 'asc')
 
-        # Проверяем допустимые поля для сортировки
-        allowed_sort_fields = ['name', 'level', 'application_deadline', 'result_date', 'created_at']
+        allowed_sort_fields = ['name', 'level', 'application_deadline', 'result_date', 'created_at', 'sort_order']
         if sort_by not in allowed_sort_fields:
             sort_by = 'name'
 
-        # Применяем сортировку
         if sort_order == 'desc':
             queryset = queryset.order_by(f'-{sort_by}')
         else:
@@ -84,39 +76,32 @@ class EventListView(LoginRequiredMixin, ListView):
 
         return queryset
 
-    # apps/events/views.py (исправляем get_context_data в EventListView)
-    # apps/events/views.py (исправляем get_context_data в EventListView)
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
 
-        # ВСЕГДА используем полный список уровней из модели
         context['levels'] = Event.LEVEL_CHOICES
         context['current_level'] = self.request.GET.get('level', '')
         context['current_search'] = self.request.GET.get('search', '')
         context['current_sort'] = self.request.GET.get('sort', 'name')
         context['current_order'] = self.request.GET.get('order', 'asc')
+        context['current_status'] = self.request.GET.get('status', 'published')
 
-        # Для фильтров - только доступные данные (опционально)
-        if hasattr(user, 'role'):
-            if user.role == 'teacher':
-                try:
-                    teacher = Teacher.objects.get(user=user)
-                    # Только конкурсы этого педагога (для events_list)
-                    context['events_list'] = Event.objects.filter(
-                        participation__enrollment__teacher=teacher
-                    ).distinct().filter(is_active=True).order_by('name')
-                except (Teacher.DoesNotExist, Exception):
-                    context['events_list'] = Event.objects.none()
-            elif user.role in ['methodist', 'admin']:
-                # Для методистов и админов - все данные
-                context['events_list'] = Event.objects.filter(is_active=True).order_by('name')
-            else:
-                context['events_list'] = Event.objects.none()
+        # Счётчики для вкладок
+        # Опубликованные (все видят одинаково)
+        context['published_count'] = Event.objects.filter(status='published').count()
+
+        if user.role == 'teacher':
+            # Для педагога: сколько его конкурсов на утверждении/черновиках
+            context['pending_count'] = Event.objects.filter(
+                created_by=user, status__in=['pending', 'draft']
+            ).count()
         else:
-            context['events_list'] = Event.objects.none()
+            # Для методиста/админа: сколько всего конкурсов на утверждении/черновиках
+            context['pending_count'] = Event.objects.filter(status__in=['pending', 'draft']).count()
 
         return context
+
 
 # apps/events/views.py (исправляем EventDetailView)
 class EventDetailView(LoginRequiredMixin, DetailView):
@@ -128,6 +113,9 @@ class EventDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         event = self.object
+
+        # Получаем статус для возврата на ту же вкладку
+        context['return_status'] = self.request.GET.get('status', 'published')
 
         # Получаем участников конкурса
         from ..participation.models import Participation
@@ -198,58 +186,144 @@ class EventDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-
 class EventCreateView(LoginRequiredMixin, CreateView):
     """Создание конкурса"""
     model = Event
-
     template_name = 'events/event_form.html'
-
-    fields = ['name', 'description', 'level', 'application_deadline',
-              'result_date', 'is_active', 'is_offline', 'sort_order']
+    fields = ['name', 'direction', 'level', 'application_deadline',
+              'result_date', 'is_active', 'participation_format', 'sort_order']
     success_url = reverse_lazy('events:list')
+
+    def dispatch(self, request, *args, **kwargs):
+        # Педагоги тоже могут создавать конкурсы (на утверждение)
+        if request.user.role not in ['teacher', 'methodist', 'admin']:
+            messages.error(request, 'Доступ только для педагогов, методистов и администраторов')
+            return HttpResponseRedirect(reverse_lazy('dashboard:home'))
+        return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
         form.instance.created_by = self.request.user
+        # Педагоги = на утверждение, методисты/админы = опубликован
+        if self.request.user.role == 'teacher':
+            form.instance.status = 'pending'
+        else:
+            form.instance.status = 'published'
         messages.success(self.request, 'Конкурс успешно добавлен.')
-
         return super().form_valid(form)
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial['sort_order'] = 3
+        return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from .models import CompetitionDirection
+        context['directions'] = CompetitionDirection.objects.all().order_by('sort_order')
+        return context
+
 
 class EventUpdateView(LoginRequiredMixin, UpdateView):
     """Редактирование конкурса"""
     model = Event
-
     template_name = 'events/event_form.html'
-    fields = ['name', 'description', 'level', 'application_deadline',
-              'result_date', 'is_active', 'is_offline', 'sort_order']
+    fields = ['name', 'direction', 'level', 'application_deadline',
+              'result_date', 'is_active', 'participation_format', 'sort_order']
     success_url = reverse_lazy('events:list')
 
+    def get_success_url(self):
+        # Получаем статус из GET параметра
+        status = self.request.GET.get('status', 'published')
+        # Возвращаемся на ту же вкладку
+        return f"{reverse_lazy('events:list')}?status={status}"
+
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        user = self.request.user
+
+        # Для методистов/админов добавляем поле status
+        if user.role in ['methodist', 'admin']:
+            form.fields['status'] = forms.ChoiceField(
+                choices=Event.STATUS_CHOICES,
+                initial=self.object.status,
+                label='Статус',
+                required=True
+            )
+        else:
+            # Для педагогов статус не показываем
+            if 'status' in form.fields:
+                del form.fields['status']
+
+        return form
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from .models import CompetitionDirection
+        context['directions'] = CompetitionDirection.objects.all().order_by('sort_order')
+        return context
+
+
+
+    def dispatch(self, request, *args, **kwargs):
+        obj = self.get_object()
+        user = request.user
+
+        if user.role == 'teacher':
+            if obj.created_by != user or obj.status not in ['pending', 'draft']:
+                messages.error(request, 'Вы можете редактировать только свои конкурсы на утверждении или черновики')
+                return HttpResponseRedirect(reverse_lazy('dashboard:home'))
+        elif user.role not in ['methodist', 'admin']:
+            messages.error(request, 'Доступ только для педагогов, методистов и администраторов')
+            return HttpResponseRedirect(reverse_lazy('dashboard:home'))
+
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form):
-        messages.success(self.request, 'Конкурс успешно обновлен.')
+        # Сохраняем статус, если он был в форме
+        if 'status' in form.cleaned_data:
+            self.object.status = form.cleaned_data['status']
+            self.object.save()
+        messages.success(self.request, 'Конкурс успешно обновлён.')
         return super().form_valid(form)
 
 
-# apps/events/views.py (обновляем EventDeleteView)
 class EventDeleteView(LoginRequiredMixin, DeleteView):
     """Удаление конкурса"""
     model = Event
     template_name = 'events/event_confirm_delete.html'
     success_url = reverse_lazy('events:list')
 
+    def get_success_url(self):
+        # Получаем статус из GET параметра
+        status = self.request.GET.get('status', 'published')
+        # Возвращаемся на ту же вкладку
+        return f"{reverse_lazy('events:list')}?status={status}"
+
+
+    def dispatch(self, request, *args, **kwargs):
+        obj = self.get_object()
+        user = request.user
+
+        if user.role == 'teacher':
+            # Педагог может удалять только свои конкурсы со статусом pending или draft
+            if obj.created_by != user or obj.status not in ['pending', 'draft']:
+                messages.error(request, 'Вы можете удалять только свои конкурсы на утверждении или черновики')
+                return HttpResponseRedirect(reverse_lazy('dashboard:home'))
+        elif user.role not in ['methodist', 'admin']:
+            messages.error(request, 'Доступ только для педагогов, методистов и администраторов')
+            return HttpResponseRedirect(reverse_lazy('dashboard:home'))
+
+        return super().dispatch(request, *args, **kwargs)
+
     def delete(self, request, *args, **kwargs):
         self.object = self.get_object()
-
-        # Проверяем, можно ли удалить конкурс
         if not self.object.can_be_deleted():
-            messages.error(
-                request,
-                f'Невозможно удалить конкурс "{self.object.name}", '
-                f'так как есть участия детей. Сначала удалите все участия в этом конкурсе.'
-            )
+            messages.error(request, f'Невозможно удалить конкурс "{self.object.name}", так как есть участия детей.')
             return HttpResponseRedirect(reverse_lazy('events:detail', kwargs={'pk': self.object.pk}))
-
-        messages.success(request, f'Конкурс "{self.object.name}" успешно удален.')
+        messages.success(request, f'Конкурс "{self.object.name}" успешно удалён.')
         return super().delete(request, *args, **kwargs)
+
 
 
 # Views для типов результатов
@@ -468,6 +542,10 @@ class AddParticipantsView(LoginRequiredMixin, View):
         existing_participations = Participation.objects.filter(event=event).values_list('enrollment_id', flat=True)
         return enrollments.exclude(id__in=existing_participations)
 
+    def get_success_url(self):
+        status = self.request.GET.get('status', 'published')
+        return f"{reverse_lazy('events:detail', kwargs={'pk': self.kwargs['pk']})}?status={status}"
+
 
 # apps/events/views.py (добавляем новый view)
 class EventParticipantsView(LoginRequiredMixin, DetailView):
@@ -596,6 +674,12 @@ class EventUploadView(LoginRequiredMixin, FormView):
     """Загрузка данных конкурсов из Excel"""
     template_name = 'events/event_upload.html'
     success_url = reverse_lazy('events:list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.role not in ['methodist', 'admin']:
+            messages.error(request, 'Доступ только для методистов и администраторов')
+            return HttpResponseRedirect(reverse_lazy('dashboard:home'))
+        return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         print("DEBUG: EventUploadView GET запрос")

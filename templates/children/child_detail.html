@@ -26,8 +26,20 @@
             <div class="card-body">
                 <table class="table">
                     <tr>
+                        <th>Фамилия:</th>
+                        <td>{{ child.last_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Имя:</th>
+                        <td>{{ child.first_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Отчество:</th>
+                        <td>{{ child.patronymic|default:"—" }}</td>
+                    </tr>
+                    <tr>
                         <th>ФИО:</th>
-                        <td>{{ child.fio }}</td>
+                        <td><strong>{{ child.fio }}</strong></td>
                     </tr>
                     <tr>
                         <th>Дата рождения:</th>

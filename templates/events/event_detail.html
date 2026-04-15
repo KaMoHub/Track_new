@@ -6,15 +6,17 @@
 {% block page_title %}Информация о конкурсе{% endblock %}
 
 {% block page_actions %}
-    <a href="{% url 'events:list' %}" class="btn btn-secondary">
+    <a href="{% url 'events:list' %}?status={{ return_status }}" class="btn btn-secondary">
         <i class="bi bi-arrow-left"></i> Назад к списку
     </a>
     <a href="{% url 'events:add_participants' event.pk %}" class="btn btn-success">
         <i class="bi bi-person-plus"></i> Добавить участников
     </a>
+    {% if user.role == 'methodist' or user.role == 'admin' %}
     <a href="{% url 'events:update' event.pk %}" class="btn btn-warning">
         <i class="bi bi-pencil"></i> Редактировать
     </a>
+    {% endif %}
 {% endblock %}
 
 {% block content %}
@@ -31,8 +33,8 @@
                         <td>{{ event.name }}</td>
                     </tr>
                     <tr>
-                        <th>Описание:</th>
-                        <td>{{ event.description|linebreaks }}</td>
+                        <th>Направление:</th>
+                        <td>{{ event.direction.name|default:"Не указано" }}</td>
                     </tr>
                     <tr>
                         <th>Уровень:</th>
@@ -41,10 +43,12 @@
                     <tr>
                         <th>Формат проведения:</th>
                         <td>
-                            {% if event.is_offline %}
-                                <span class="badge bg-success">Очный</span>
+                            {% if event.participation_format == 'offline' %}
+                                <span class="badge bg-success">Очная</span>
+                            {% elif event.participation_format == 'mixed' %}
+                                <span class="badge bg-warning">Очно-дистанционная</span>
                             {% else %}
-                                <span class="badge bg-info">Заочный</span>
+                                <span class="badge bg-info">Заочная</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -56,18 +60,9 @@
                         <th>Дата объявления результатов:</th>
                         <td>{{ event.result_date|date:"d.m.Y"|default:"Не указана" }}</td>
                     </tr>
+
                     <tr>
-                        <th>Статус:</th>
-                        <td>
-                            {% if event.is_active %}
-                                <span class="badge bg-success">Активен</span>
-                            {% else %}
-                                <span class="badge bg-secondary">Неактивен</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>Порядок сортировки:</th>
+                        <th>Приоритет:</th>
                         <td>{{ event.sort_order }}</td>
                     </tr>
                     <tr>
@@ -216,18 +211,20 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'events:list' %}" class="btn btn-secondary">
+                    <a href="{% url 'events:list' %}?status={{ return_status }}" class="btn btn-secondary">
                         <i class="bi bi-arrow-left"></i> Назад к списку
                     </a>
                     <a href="{% url 'events:add_participants' event.pk %}" class="btn btn-success">
                         <i class="bi bi-person-plus"></i> Добавить участников
                     </a>
+                    {% if user.role == 'methodist' or user.role == 'admin' %}
                     <a href="{% url 'events:update' event.pk %}" class="btn btn-warning">
                         <i class="bi bi-pencil"></i> Редактировать
                     </a>
                     <a href="{% url 'events:delete' event.pk %}" class="btn btn-danger">
                         <i class="bi bi-trash"></i> Удалить
                     </a>
+                    {% endif %}
                 </div>
             </div>
         </div>

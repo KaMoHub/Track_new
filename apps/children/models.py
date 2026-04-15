@@ -14,6 +14,22 @@ class Child(models.Model):
         ('F', 'Женский'),
     ]
 
+    # Новые поля
+    last_name = models.CharField(
+        max_length=100,
+        verbose_name='Фамилия'
+    )
+    first_name = models.CharField(
+        max_length=100,
+        verbose_name='Имя'
+    )
+    patronymic = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Отчество'
+    )
+
+    # Старое поле fio оставляем, но сделаем его вычисляемым при сохранении
     fio = models.CharField(
         max_length=255,
         verbose_name='ФИО'
@@ -39,6 +55,14 @@ class Child(models.Model):
         verbose_name = 'Ребенок'
         verbose_name_plural = 'Дети'
         ordering = ['fio']
+
+    def save(self, *args, **kwargs):
+        # Автоматически формируем ФИО из частей
+        parts = [self.last_name, self.first_name]
+        if self.patronymic:
+            parts.append(self.patronymic)
+        self.fio = ' '.join(parts)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.fio

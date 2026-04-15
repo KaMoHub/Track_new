@@ -7,6 +7,13 @@ from ..participation.models import Participation
 
 class Event(models.Model):
     """Модель конкурса/мероприятия"""
+
+    STATUS_CHOICES = [
+        ('draft', 'Черновик'),
+        ('pending', 'На утверждении'),
+        ('published', 'Опубликован'),
+    ]
+
     LEVEL_CHOICES = [
         ('center', 'Центровский'),
         ('city', 'Городской'),
@@ -67,6 +74,36 @@ class Event(models.Model):
         null=True,
         verbose_name='Создал'
     )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        verbose_name='Статус'
+    )
+
+    # Связь со справочником направлений конкурсов
+    direction = models.ForeignKey(
+        'CompetitionDirection',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=False,
+        verbose_name='Направление конкурса'
+    )
+
+    PARTICIPATION_FORMAT_CHOICES = [
+        ('offline', 'Очная'),
+        ('mixed', 'Очно-дистанционная'),
+        ('online', 'Заочная'),
+    ]
+
+    participation_format = models.CharField(
+        max_length=20,
+        choices=PARTICIPATION_FORMAT_CHOICES,
+        default='offline',
+        verbose_name='Формат участия'
+    )
+
 
     class Meta:
         verbose_name = 'Конкурс'
@@ -143,6 +180,28 @@ class ResultType(models.Model):
             related['Участия'] = participations.count()
         return related
 
-# Импортируем Participation из participation app для использования в can_be_deleted
-# Но так как у нас еще нет этого приложения, создадим заглушку
-# В реальности это будет импорт из apps.participation.models
+
+class CompetitionDirection(models.Model):
+    """Направление конкурса (справочник)"""
+    name = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name='Название направления'
+    )
+    code = models.CharField(
+        max_length=20,
+        unique=True,
+        verbose_name='Код'
+    )
+    sort_order = models.IntegerField(
+        default=0,
+        verbose_name='Порядок сортировки'
+    )
+
+    class Meta:
+        verbose_name = 'Направление конкурса'
+        verbose_name_plural = 'Направления конкурсов'
+        ordering = ['sort_order', 'name']
+
+    def __str__(self):
+        return self.name

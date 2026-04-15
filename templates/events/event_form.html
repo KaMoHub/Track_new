@@ -13,18 +13,30 @@
                 <form method="post">
                     {% csrf_token %}
                     <div class="mb-3">
-                        <label for="{{ form.name.id_for_label }}" class="form-label">Название *</label>
-                        {{ form.name }}
+                        <label for="{{ form.name.id_for_label }}" class="form-label">Название конкурса *</label>
+                        <textarea name="{{ form.name.html_name }}"
+                                  id="{{ form.name.id_for_label }}"
+                                  class="form-control"
+                                  rows="4"
+                                  required>{{ form.name.value|default:'' }}</textarea>
                         {% if form.name.errors %}
                             <div class="text-danger">{{ form.name.errors }}</div>
                         {% endif %}
+                        <div class="form-text">Полное название конкурса или мероприятия</div>
                     </div>
 
+                    <!-- Направление конкурса -->
                     <div class="mb-3">
-                        <label for="{{ form.description.id_for_label }}" class="form-label">Описание</label>
-                        {{ form.description }}
-                        {% if form.description.errors %}
-                            <div class="text-danger">{{ form.description.errors }}</div>
+                        <label for="id_direction" class="form-label">Направление конкурса *</label>
+                        <select name="direction" id="id_direction" class="form-select" required>
+                            {% for direction in directions %}
+                                <option value="{{ direction.id }}" {% if form.direction.value == direction.id %}selected{% endif %}>
+                                    {{ direction.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.direction.errors %}
+                            <div class="text-danger">{{ form.direction.errors }}</div>
                         {% endif %}
                     </div>
 
@@ -40,7 +52,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="{{ form.sort_order.id_for_label }}" class="form-label">Порядок сортировки</label>
+                                <label for="{{ form.sort_order.id_for_label }}" class="form-label">Приоритет</label>
                                 {{ form.sort_order }}
                                 {% if form.sort_order.errors %}
                                     <div class="text-danger">{{ form.sort_order.errors }}</div>
@@ -81,38 +93,36 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <div class="form-check">
-                                    {{ form.is_active }}
-                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
-                                        Активен
-                                    </label>
-                                </div>
-                                {% if form.is_active.errors %}
-                                    <div class="text-danger">{{ form.is_active.errors }}</div>
-                                {% endif %}
-                            </div>
+                        {% if form.status %}
+                        <div class="mb-3">
+                            <label for="{{ form.status.id_for_label }}" class="form-label">Статус</label>
+                            {{ form.status }}
+                            {% if form.status.errors %}
+                                <div class="text-danger">{{ form.status.errors }}</div>
+                            {% endif %}
                         </div>
+                        {% endif %}
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <div class="form-check">
-                                    {{ form.is_offline }}
-                                    <label class="form-check-label" for="{{ form.is_offline.id_for_label }}">
-                                        Очное
-                                    </label>
-                                </div>
-                                {% if form.is_offline.errors %}
-                                    <div class="text-danger">{{ form.is_offline.errors }}</div>
+                                <label for="id_participation_format" class="form-label">Формат участия *</label>
+                                <select name="participation_format" id="id_participation_format" class="form-select" required>
+                                    <option value="offline" {% if form.participation_format.value == 'offline' %}selected{% endif %}>Очная</option>
+                                    <option value="mixed" {% if form.participation_format.value == 'mixed' %}selected{% endif %}>Очно-дистанционная</option>
+                                    <option value="online" {% if form.participation_format.value == 'online' %}selected{% endif %}>Заочная</option>
+                                </select>
+                                {% if form.participation_format.errors %}
+                                    <div class="text-danger">{{ form.participation_format.errors }}</div>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
 
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-save"></i> Сохранить
                         </button>
+
                         <a href="{% url 'events:list' %}" class="btn btn-secondary">
                             <i class="bi bi-arrow-left"></i> Отмена
                         </a>
@@ -132,9 +142,9 @@
                 <ul>
                     <li>Поля, отмеченные *, обязательны для заполнения</li>
                     <li>Даты указываются в формате ДД.ММ.ГГГГ</li>
-                    <li>Порядок сортировки влияет на отображение в списках</li>
-                    <li>Неактивные конкурсы не отображаются в списках выбора</li>
-                    <li>Галочка "Очное" указывает формат проведения конкурса</li>
+                    <li>Приоритет влияет на порядок сортировки в списках</li>
+                    <li>Направление конкурса: Наука, Спорт, Образование или Творчество</li>
+                    <li>Формат участия: Очная, Очно-дистанционная или Заочная</li>
                 </ul>
                 {% if object %}
                 <div class="alert alert-info">
