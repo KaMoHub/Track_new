@@ -41,14 +41,16 @@
                         <td>{{ event.get_level_display }}</td>
                     </tr>
                     <tr>
-                        <th>Формат проведения:</th>
+                        <th>Формат участия:</th>
                         <td>
                             {% if event.participation_format == 'offline' %}
                                 <span class="badge bg-success">Очная</span>
                             {% elif event.participation_format == 'mixed' %}
                                 <span class="badge bg-warning">Очно-дистанционная</span>
-                            {% else %}
+                            {% elif event.participation_format == 'online' %}
                                 <span class="badge bg-info">Заочная</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Не указан</span>
                             {% endif %}
                         </td>
                     </tr>

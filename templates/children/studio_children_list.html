@@ -26,31 +26,22 @@
                 <div class="card h-100">
                     <div class="card-header py-1 bg-primary text-white">
                         <h6 class="card-title mb-0 small">
-                            <i class="bi bi-bar-chart"></i> Статистика
+                            <i class="bi bi-bar-chart"></i> Статистика ({{ current_academic_year }})
                         </h6>
                     </div>
                     <div class="card-body py-2">
-                        <div class="row">
-                            <div class="col-6">
-                                <div class="text-center">
-                                    <i class="bi bi-people" style="font-size: 1.2rem; color: #007bff;"></i>
-                                    <p class="mb-0 small">
-                                        <strong class="fs-6">{{ unique_children_count }}</strong><br>
-                                        <small>Уникальных детей</small>
-                                    </p>
-                                </div>
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <small>Всего</small>
+                                <strong class="d-block fs-6">{{ total_enrollments_all }}</strong>
                             </div>
-                            <div class="col-6">
-                                <div class="text-center">
-                                    <i class="bi bi-mortarboard" style="font-size: 1.2rem; color: #28a745;"></i>
-                                    <p class="mb-0 small">
-                                        <strong class="fs-6">{{ total_enrollments }}</strong><br>
-                                        <small>Записей в студии</small>
-                                        {% if current_studios or current_search %}
-                                            <br><small class="text-muted">(отфильтровано)</small>
-                                        {% endif %}
-                                    </p>
-                                </div>
+                            <div class="col-4">
+                                <small class="text-success">Активные</small>
+                                <strong class="d-block fs-6 text-success">{{ active_count }}</strong>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-danger">Отчисленные</small>
+                                <strong class="d-block fs-6 text-danger">{{ dismissed_count }}</strong>
                             </div>
                         </div>
                     </div>
@@ -83,6 +74,13 @@
                                        placeholder="Поиск..." value="{{ current_search }}">
                             </div>
                             <div class="col-md-3">
+                                <div class="form-check mb-1">
+                                    <input type="checkbox" name="show_dismissed" id="show_dismissed" class="form-check-input"
+                                           {% if show_dismissed %}checked{% endif %}>
+                                    <label class="form-check-label small" for="show_dismissed">
+                                        Показывать отчисленных
+                                    </label>
+                                </div>
                                 <button type="submit" class="btn btn-primary btn-sm w-100 mb-1">
                                     <i class="bi bi-search"></i> Применить
                                 </button>
@@ -94,7 +92,6 @@
                     </div>
                 </div>
             </div>
-        </div>
 
         <!-- Список детей в студиях -->
         <div class="card">
@@ -111,102 +108,106 @@
                     <div class="table-responsive">
                         <table class="table table-sm table-striped table-hover mb-0">
                             <!-- templates/children/studio_children_list.html (исправленный заголовок таблицы) -->
-<!-- templates/children/studio_children_list.html (исправленный заголовок таблицы) -->
-<!-- templates/children/studio_children_list.html (полностью переделываем заголовок таблицы) -->
-<thead class="table-primary">
-    <tr>
-        <!-- Колонка № -->
-        <th scope="col" class="align-middle">
-            <span class="fw-bold small">#</span>
-        </th>
+                            <!-- templates/children/studio_children_list.html (исправленный заголовок таблицы) -->
+                            <!-- templates/children/studio_children_list.html (полностью переделываем заголовок таблицы) -->
+                            <thead class="table-primary">
+                                <tr>
+                                    <!-- Колонка № -->
+                                    <th scope="col" class="align-middle">
+                                        <span class="fw-bold small">#</span>
+                                    </th>
 
-        <!-- Сортировка по ребенку -->
-        <th scope="col" class="align-middle">
-            <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=child__fio&order={% if current_sort == 'child__fio' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
-               class="text-decoration-none text-dark fw-bold small">
-                <div class="d-flex justify-content-between align-items-center">
-                    <span>Ребенок</span>
-                    {% if current_sort == 'child__fio' %}
-                        {% if current_order == 'asc' %}
-                            <i class="bi bi-sort-alpha-down text-primary"></i>
-                        {% else %}
-                            <i class="bi bi-sort-alpha-up text-primary"></i>
-                        {% endif %}
-                    {% else %}
-                        <i class="bi bi-arrow-down-up text-muted"></i>
-                    {% endif %}
-                </div>
-            </a>
-        </th>
+                                    <!-- Сортировка по ребенку -->
+                                    <th scope="col" class="align-middle">
+                                        <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=child__fio&order={% if current_sort == 'child__fio' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+                                           class="text-decoration-none text-dark fw-bold small">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span>Ребенок</span>
+                                                {% if current_sort == 'child__fio' %}
+                                                    {% if current_order == 'asc' %}
+                                                        <i class="bi bi-sort-alpha-down text-primary"></i>
+                                                    {% else %}
+                                                        <i class="bi bi-sort-alpha-up text-primary"></i>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <i class="bi bi-arrow-down-up text-muted"></i>
+                                                {% endif %}
+                                            </div>
+                                        </a>
+                                    </th>
 
-        <!-- Сортировка по студии -->
-        <th scope="col" class="align-middle">
-            <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=studio__name&order={% if current_sort == 'studio__name' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
-               class="text-decoration-none text-dark fw-bold small">
-                <div class="d-flex justify-content-between align-items-center">
-                    <span>Студия</span>
-                    {% if current_sort == 'studio__name' %}
-                        {% if current_order == 'asc' %}
-                            <i class="bi bi-sort-alpha-down text-primary"></i>
-                        {% else %}
-                            <i class="bi bi-sort-alpha-up text-primary"></i>
-                        {% endif %}
-                    {% else %}
-                        <i class="bi bi-arrow-down-up text-muted"></i>
-                    {% endif %}
-                </div>
-            </a>
-        </th>
+                                    <!-- Сортировка по студии -->
+                                    <th scope="col" class="align-middle">
+                                        <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=studio__name&order={% if current_sort == 'studio__name' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+                                           class="text-decoration-none text-dark fw-bold small">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span>Студия</span>
+                                                {% if current_sort == 'studio__name' %}
+                                                    {% if current_order == 'asc' %}
+                                                        <i class="bi bi-sort-alpha-down text-primary"></i>
+                                                    {% else %}
+                                                        <i class="bi bi-sort-alpha-up text-primary"></i>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <i class="bi bi-arrow-down-up text-muted"></i>
+                                                {% endif %}
+                                            </div>
+                                        </a>
+                                    </th>
 
-        <!-- Сортировка по направлению -->
-        <th scope="col" class="align-middle">
-            <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=direction__name&order={% if current_sort == 'direction__name' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
-               class="text-decoration-none text-dark fw-bold small">
-                <div class="d-flex justify-content-between align-items-center">
-                    <span>Направление</span>
-                    {% if current_sort == 'direction__name' %}
-                        {% if current_order == 'asc' %}
-                            <i class="bi bi-sort-alpha-down text-primary"></i>
-                        {% else %}
-                            <i class="bi bi-sort-alpha-up text-primary"></i>
-                        {% endif %}
-                    {% else %}
-                        <i class="bi bi-arrow-down-up text-muted"></i>
-                    {% endif %}
-                </div>
-            </a>
-        </th>
+                                    <!-- Сортировка по направлению -->
+                                    <th scope="col" class="align-middle">
+                                        <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=direction__name&order={% if current_sort == 'direction__name' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+                                           class="text-decoration-none text-dark fw-bold small">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span>Направление</span>
+                                                {% if current_sort == 'direction__name' %}
+                                                    {% if current_order == 'asc' %}
+                                                        <i class="bi bi-sort-alpha-down text-primary"></i>
+                                                    {% else %}
+                                                        <i class="bi bi-sort-alpha-up text-primary"></i>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <i class="bi bi-arrow-down-up text-muted"></i>
+                                                {% endif %}
+                                            </div>
+                                        </a>
+                                    </th>
 
-        <!-- Сортировка по педагогу -->
-        <th scope="col" class="align-middle">
-            <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=teacher__fio&order={% if current_sort == 'teacher__fio' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
-               class="text-decoration-none text-dark fw-bold small">
-                <div class="d-flex justify-content-between align-items-center">
-                    <span>Педагог</span>
-                    {% if current_sort == 'teacher__fio' %}
-                        {% if current_order == 'asc' %}
-                            <i class="bi bi-sort-alpha-down text-primary"></i>
-                        {% else %}
-                            <i class="bi bi-sort-alpha-up text-primary"></i>
-                        {% endif %}
-                    {% else %}
-                        <i class="bi bi-arrow-down-up text-muted"></i>
-                    {% endif %}
-                </div>
-            </a>
-        </th>
+                                    <!-- Сортировка по педагогу -->
+                                    <th scope="col" class="align-middle">
+                                        <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=teacher__fio&order={% if current_sort == 'teacher__fio' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+                                           class="text-decoration-none text-dark fw-bold small">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span>Педагог</span>
+                                                {% if current_sort == 'teacher__fio' %}
+                                                    {% if current_order == 'asc' %}
+                                                        <i class="bi bi-sort-alpha-down text-primary"></i>
+                                                    {% else %}
+                                                        <i class="bi bi-sort-alpha-up text-primary"></i>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <i class="bi bi-arrow-down-up text-muted"></i>
+                                                {% endif %}
+                                            </div>
+                                        </a>
+                                    </th>
 
-        <!-- Колонка "Файлы" БЕЗ сортировки -->
-        <th scope="col" class="align-middle">
-            <span class="fw-bold small">Файлы</span>
-        </th>
+                                    <!-- Колонка "Файлы" БЕЗ сортировки -->
+                                    <th scope="col" class="align-middle">
+                                        <span class="fw-bold small">Файлы</span>
+                                    </th>
 
-        <!-- Колонка "Действия" БЕЗ сортировки -->
-        <th scope="col" class="align-middle">
-            <span class="fw-bold small">Действия</span>
-        </th>
-    </tr>
-</thead>
+                                    <!-- Колонка "Действия" БЕЗ сортировки -->
+                                    <th scope="col" class="align-middle">
+                                        <span class="fw-bold small">Действия</span>
+                                    </th>
+
+                                    <th scope="col" class="align-middle">
+                                        <span class="fw-bold small">Дата отчисления</span>
+                                    </th>
+                                </tr>
+                            </thead>
                             <tbody>
                                 {% for enrollment in children %}
                                     <tr>
@@ -245,6 +246,10 @@
                                                     <i class="bi bi-pencil"></i>
                                                 </a>
                                             </div>
+                                        </td>
+
+                                        <td class="small text-center">
+                                            {{ enrollment.date_of_dismissal|date:"d.m.Y"|default:"—" }}
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -309,4 +314,30 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+    // При загрузке страницы устанавливаем состояние чекбокса из URL
+    document.addEventListener('DOMContentLoaded', function() {
+        const checkbox = document.getElementById('show_dismissed');
+        if (checkbox) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const showDismissed = urlParams.get('show_dismissed');
+            checkbox.checked = (showDismissed === 'on');
+        }
+    });
+
+    // При изменении чекбокса обновляем URL и перезагружаем
+    document.getElementById('show_dismissed')?.addEventListener('change', function() {
+        const url = new URL(window.location.href);
+        if (this.checked) {
+            url.searchParams.set('show_dismissed', 'on');
+        } else {
+            url.searchParams.delete('show_dismissed');
+        }
+        window.location.href = url.toString();
+    });
+</script>
 {% endblock %}

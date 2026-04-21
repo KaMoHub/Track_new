@@ -110,7 +110,7 @@
                 <h5 class="card-title mt-3">Профиль</h5>
                 <p class="card-text">Управление вашим профилем и настройками.</p>
                 {% if user.is_authenticated %}
-                    <a href="" class="btn btn-info">Перейти</a>
+                    <a href="{% url 'accounts:profile' %}" class="btn btn-info">Перейти</a>
                 {% else %}
                     <a href="{% url 'accounts:login' %}" class="btn btn-info">Войти для доступа</a>
                 {% endif %}

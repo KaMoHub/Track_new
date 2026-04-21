@@ -239,6 +239,14 @@ class StudioEnrollment(models.Model):
         verbose_name='Дата записи'
     )
 
+    # Поле "Дата отчисления" (может быть пустым)
+    date_of_dismissal = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Дата отчисления'
+    )
+
+
     class Meta:
         verbose_name = 'Запись в студию'
         verbose_name_plural = 'Записи в студии'

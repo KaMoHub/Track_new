@@ -1,12 +1,26 @@
-<!-- templates/base/footer.html -->
 <footer class="footer mt-auto py-3 bg-light border-top">
-    <div class="container">
+    <div class="container-fluid">
         <div class="row">
             <div class="col-md-6">
-                <span class="text-muted">© 2025 МАУ ДО "ЦДО", г.Мирный. Все права защищены.</span>
+                <span class="text-muted">
+                    © 2025 МАУ ДО "ЦДО", г.Мирный. Все права защищены.
+                </span>
             </div>
             <div class="col-md-6 text-md-end">
-                <span class="text-muted">Версия 1.0</span>
+                <span class="text-muted">
+                    Учебный год:
+                    {% if user.is_authenticated and user.profile %}
+                        {{ user.profile.academic_year_start }}–{{ user.profile.academic_year_end }}
+                    {% else %}
+                        2024–2025
+                    {% endif %}
+                    &nbsp;|&nbsp;
+                    {% if user.is_authenticated %}
+                        {{ user.get_full_name|default:user.username }}
+                    {% else %}
+                        Гость
+                    {% endif %}
+                </span>
             </div>
         </div>
     </div>

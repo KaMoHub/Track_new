@@ -6,6 +6,21 @@ from django.contrib import messages
 from django.urls import reverse
 from django.http import HttpResponseRedirect
 from .forms import CustomUserCreationForm, UserProfileForm
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+
+@login_required
+def change_password_view(request):
+    if request.method == 'POST':
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)
+            messages.success(request, 'Пароль успешно изменён.')
+            return redirect('accounts:profile')
+    else:
+        form = PasswordChangeForm(request.user)
+    return render(request, 'accounts/change_password.html', {'form': form})
 
 
 def login_view(request):
@@ -35,7 +50,7 @@ def logout_view(request):
 @login_required
 def profile_view(request):
     """Страница профиля пользователя"""
-    profile = request.user.user_profile
+    profile = request.user.profile  # было user_profile, стало profile
 
     if request.method == 'POST':
         form = UserProfileForm(request.POST, instance=profile)

@@ -52,12 +52,15 @@ class ParticipationListView(BaseParticipationView, ListView):
 
         # Фильтры
         child_id = self.request.GET.get('child')
+        studio_id = self.request.GET.get('studio')
         event_id = self.request.GET.get('event')
         result_type_id = self.request.GET.get('result_type')
         search = self.request.GET.get('search')
 
         if child_id:
             queryset = queryset.filter(child_id=child_id)
+        if studio_id:
+            queryset = queryset.filter(enrollment__studio_id=studio_id)
         if event_id:
             queryset = queryset.filter(event_id=event_id)
         if result_type_id:
@@ -118,6 +121,7 @@ class ParticipationListView(BaseParticipationView, ListView):
         context['current_event'] = self.request.GET.get('event', '')
         context['current_result_type'] = self.request.GET.get('result_type', '')
         context['current_search'] = self.request.GET.get('search', '')
+        context['current_studio'] = self.request.GET.get('studio', '')
 
         return context
 

@@ -19,7 +19,7 @@
         <div class="card mb-3">
             <div class="card-body">
                 <form method="get" class="row g-3">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="child" class="form-label">Ребенок</label>
                         <select name="child" id="child" class="form-select">
                             <option value="">Все дети</option>
@@ -30,7 +30,20 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-3">
+
+                    <div class="col-md-2">
+                        <label for="studio" class="form-label">Студия</label>
+                        <select name="studio" id="studio" class="form-select">
+                            <option value="">Все студии</option>
+                            {% for studio in studios %}
+                                <option value="{{ studio.id }}" {% if current_studio == studio.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ studio.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
                         <label for="event" class="form-label">Конкурс</label>
                         <select name="event" id="event" class="form-select">
                             <option value="">Все конкурсы</option>

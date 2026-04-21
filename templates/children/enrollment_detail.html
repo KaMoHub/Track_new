@@ -52,6 +52,10 @@
                         <th>Дата записи:</th>
                         <td>{{ enrollment.enrollment_date|date:"d.m.Y" }}</td>
                     </tr>
+                    <tr>
+                        <th>Дата отчисления:</th>
+                        <td>{{ enrollment.date_of_dismissal|date:"d.m.Y"|default:"—" }}</td>
+                    </tr>
                 </table>
             </div>
         </div>

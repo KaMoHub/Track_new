@@ -100,7 +100,8 @@ class Event(models.Model):
     participation_format = models.CharField(
         max_length=20,
         choices=PARTICIPATION_FORMAT_CHOICES,
-        default='offline',
+        blank=True,
+        null=True,
         verbose_name='Формат участия'
     )
 

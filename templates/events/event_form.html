@@ -104,8 +104,9 @@
                         {% endif %}
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="id_participation_format" class="form-label">Формат участия *</label>
-                                <select name="participation_format" id="id_participation_format" class="form-select" required>
+                                <label for="id_participation_format" class="form-label">Формат участия</label>
+                                <select name="participation_format" id="id_participation_format" class="form-select">
+                                    <option value="">-- Не указан --</option>
                                     <option value="offline" {% if form.participation_format.value == 'offline' %}selected{% endif %}>Очная</option>
                                     <option value="mixed" {% if form.participation_format.value == 'mixed' %}selected{% endif %}>Очно-дистанционная</option>
                                     <option value="online" {% if form.participation_format.value == 'online' %}selected{% endif %}>Заочная</option>
@@ -144,7 +145,7 @@
                     <li>Даты указываются в формате ДД.ММ.ГГГГ</li>
                     <li>Приоритет влияет на порядок сортировки в списках</li>
                     <li>Направление конкурса: Наука, Спорт, Образование или Творчество</li>
-                    <li>Формат участия: Очная, Очно-дистанционная или Заочная</li>
+                    <li>Формат участия: Очная, Очно-дистанционная или Заочная (необязательно)</li>
                 </ul>
                 {% if object %}
                 <div class="alert alert-info">

@@ -149,4 +149,39 @@
         </div>
     </div>
 </div>
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Для поля "Ребенок и студия"
+        var enrollmentField = document.getElementById("{{ form.enrollment.id_for_label }}");
+        if (enrollmentField) {
+            enrollmentField.classList.add("select2");
+            if (typeof jQuery !== 'undefined') {
+                jQuery(enrollmentField).select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'Начните вводить фамилию ребенка или название студии...',
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
+        }
+
+        // Для поля "Конкурс"
+        var eventField = document.getElementById("{{ form.event.id_for_label }}");
+        if (eventField) {
+            eventField.classList.add("select2");
+            if (typeof jQuery !== 'undefined') {
+                jQuery(eventField).select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'Начните вводить название конкурса...',
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
+        }
+    });
+</script>
+
+
 {% endblock %}

@@ -1110,14 +1110,42 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
     # apps/children/views.py (обновляем get_queryset в StudioChildrenListView)
     def get_queryset(self):
         user = self.request.user
+        show_dismissed = self.request.GET.get('show_dismissed', 'off') == 'on'
+
+        # Получаем учебный год из профиля пользователя
+        if hasattr(self.request.user, 'profile'):
+            start = self.request.user.profile.academic_year_start
+            end = self.request.user.profile.academic_year_end
+            current_academic_year = f"{start}-{end}"
+        else:
+            # Если у пользователя нет профиля, берём из любого профиля или значение по умолчанию
+            from apps.accounts.models import UserProfile
+            profile = UserProfile.objects.first()
+            if profile:
+                current_academic_year = f"{profile.academic_year_start}-{profile.academic_year_end}"
+            else:
+                current_academic_year = "2025-2026"
 
         print(f"=== DEBUG: Начало get_queryset ===")
         print(f"DEBUG: Пользователь: {user.username} (ID: {user.id})")
+        queryset = StudioEnrollment.objects.select_related(
+            'child', 'studio', 'direction', 'teacher'
+        )
+        print(f"DEBUG: начальный queryset: {queryset.count()}")
 
         # Получаем все записи в студиях
         queryset = StudioEnrollment.objects.select_related(
             'child', 'studio',  'direction', 'teacher'
         )
+
+        # Фильтр по учебному году
+        print(f"DEBUG: academic_year: {current_academic_year}")
+        queryset = queryset.filter(academic_year=current_academic_year)
+        print(f"DEBUG: после фильтра по году: {queryset.count()}")
+
+        # Фильтр по отчисленным
+        if not show_dismissed:
+            queryset = queryset.filter(date_of_dismissal__isnull=True)
 
         print(f"DEBUG: Всего записей в студиях: {queryset.count()}")
 
@@ -1247,6 +1275,46 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
         # Добавляем список разрешенных полей для сортировки
         context['allowed_sort_fields'] = ['child__fio', 'studio__name', 'teacher__fio', 'direction__name']
 
+        # Статистика по отчисленным с учётом роли и доступных студий
+        from django.db.models import Q
+
+        # Получаем учебный год из профиля
+        if hasattr(self.request.user, 'profile'):
+            start = self.request.user.profile.academic_year_start
+            end = self.request.user.profile.academic_year_end
+            current_academic_year = f"{start}-{end}"
+        else:
+            from apps.accounts.models import UserProfile
+            profile = UserProfile.objects.first()
+            if profile:
+                current_academic_year = f"{profile.academic_year_start}-{profile.academic_year_end}"
+            else:
+                current_academic_year = "2025-2026"
+
+        # Базовый queryset для статистики (без фильтров по студии и поиску, но с учётом роли)
+        stats_queryset = StudioEnrollment.objects.filter(academic_year=current_academic_year)
+
+        # Учитываем роль пользователя
+        user_role = getattr(self.request.user, 'role', None)
+        if user_role == 'teacher':
+            try:
+                teacher = Teacher.objects.get(user=self.request.user)
+                stats_queryset = stats_queryset.filter(teacher=teacher)
+            except Teacher.DoesNotExist:
+                stats_queryset = stats_queryset.none()
+        elif user_role not in ['methodist', 'admin']:
+            stats_queryset = stats_queryset.none()
+
+        # Считаем статистику
+        total_enrollments = stats_queryset.count()
+        dismissed_count = stats_queryset.filter(date_of_dismissal__isnull=False).count()
+        active_count = total_enrollments - dismissed_count
+
+        context['total_enrollments_all'] = total_enrollments
+        context['dismissed_count'] = dismissed_count
+        context['active_count'] = active_count
+        context['current_academic_year'] = current_academic_year
+
         return context
 
 
@@ -1281,7 +1349,7 @@ class EnrollmentUpdateView(LoginRequiredMixin, UpdateView):
     """Редактирование записи в студии"""
     model = StudioEnrollment
     template_name = 'children/enrollment_form.html'
-    fields = ['child', 'studio', 'teacher', 'academic_year']
+    fields = ['child', 'studio', 'teacher', 'academic_year', 'date_of_dismissal']
     success_url = reverse_lazy('children:studio_children')
 
     def get_form(self, form_class=None):

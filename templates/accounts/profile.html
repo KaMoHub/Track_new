@@ -36,8 +36,11 @@
                 <p><strong>Имя пользователя:</strong> {{ user.username }}</p>
                 <p><strong>Полное имя:</strong> {{ user.get_full_name|default:"Не указано" }}</p>
                 <p><strong>Email:</strong> {{ user.email|default:"Не указан" }}</p>
-                <p><strong>Роль:</strong> {{ user.user_profile.get_role_display }}</p>
-                <p><strong>Учебный год:</strong> {{ user.user_profile.academic_year }}</p>
+                <p><strong>Роль:</strong> {{ user.profile.get_role_display }}</p>
+                <p><strong>Учебный год:</strong> {{ user.profile.academic_year_start }}–{{ user.profile.academic_year_end }}</p>>
+                <a href="{% url 'accounts:change_password' %}" class="btn btn-outline-warning mt-2">
+                    <i class="bi bi-key"></i> Сменить пароль
+                </a>
             </div>
         </div>
     </div>
