@@ -20,6 +20,210 @@ from datetime import datetime, date, timedelta
 from django.db.models import Count, Q
 from django.utils.timezone import make_aware
 
+import openpyxl
+
+
+def export_children_excel(request):
+    """Экспорт списка детей в Excel с учётом фильтров"""
+    # Получаем отфильтрованный queryset (используем ту же логику, что в ChildListView)
+    queryset = Child.objects.all()
+
+    # Поиск по отдельным полям
+    last_name = request.GET.get('last_name', '').strip()
+    first_name = request.GET.get('first_name', '').strip()
+    patronymic = request.GET.get('patronymic', '').strip()
+
+    if last_name:
+        queryset = queryset.filter(last_name__icontains=last_name)
+    if first_name:
+        queryset = queryset.filter(first_name__icontains=first_name)
+    if patronymic:
+        queryset = queryset.filter(patronymic__icontains=patronymic)
+
+    # Дети без студии
+    no_studio = request.GET.get('no_studio') == 'on'
+    if no_studio:
+        queryset = queryset.filter(studioenrollment__isnull=True)
+
+    # Сортировка
+    sort_field = request.GET.get('sort', 'last_name')
+    if sort_field in ['last_name', 'first_name', 'date_of_birth', 'gender']:
+        queryset = queryset.order_by(sort_field)
+    elif sort_field in ['-last_name', '-first_name', '-date_of_birth', '-gender']:
+        queryset = queryset.order_by(sort_field)
+    else:
+        queryset = queryset.order_by('last_name', 'first_name')
+
+    # Создаём Excel файл
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Список детей'
+
+    # Заголовки
+    headers = ['Фамилия', 'Имя', 'Отчество', 'Дата рождения', 'Возраст', 'Пол']
+    for col_idx, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = Border(left=Side(style='thin'), right=Side(style='thin'),
+                             top=Side(style='thin'), bottom=Side(style='thin'))
+
+    # Данные
+    for row_idx, child in enumerate(queryset, 2):
+        ws.cell(row=row_idx, column=1, value=child.last_name)
+        ws.cell(row=row_idx, column=2, value=child.first_name)
+        ws.cell(row=row_idx, column=3, value=child.patronymic or '')
+        ws.cell(row=row_idx, column=4, value=child.date_of_birth.strftime('%d.%m.%Y') if child.date_of_birth else '')
+        ws.cell(row=row_idx, column=5, value=child.age)
+        ws.cell(row=row_idx, column=6, value='Мужской' if child.gender == 'M' else 'Женский')
+
+        # Выравнивание
+        for col_idx in range(1, 7):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = Border(left=Side(style='thin'), right=Side(style='thin'),
+                                 top=Side(style='thin'), bottom=Side(style='thin'))
+
+    # Настройка ширины колонок
+    ws.column_dimensions['A'].width = 20
+    ws.column_dimensions['B'].width = 15
+    ws.column_dimensions['C'].width = 20
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 10
+    ws.column_dimensions['F'].width = 12
+
+    # Формируем ответ
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="children_list.xlsx"'
+    wb.save(response)
+    return response
+
+def export_enrollments_excel(request):
+    """Экспорт списка детей в студиях в Excel с учётом фильтров"""
+    from .models import StudioEnrollment, Teacher, Studio
+    from django.db.models import Q
+    from datetime import datetime
+
+    # Получаем учебный год из профиля
+    if hasattr(request.user, 'profile'):
+        start = request.user.profile.academic_year_start
+        end = request.user.profile.academic_year_end
+        current_academic_year = f"{start}-{end}"
+    else:
+        from apps.accounts.models import UserProfile
+        profile = UserProfile.objects.first()
+        if profile:
+            current_academic_year = f"{profile.academic_year_start}-{profile.academic_year_end}"
+        else:
+            current_academic_year = "2025-2026"
+
+    # Базовый queryset
+    queryset = StudioEnrollment.objects.select_related(
+        'child', 'studio', 'direction', 'teacher'
+    ).filter(academic_year=current_academic_year)
+
+    # Фильтр по отчисленным
+    show_dismissed = request.GET.get('show_dismissed') == 'on'
+    if not show_dismissed:
+        queryset = queryset.filter(date_of_dismissal__isnull=True)
+
+    # Учитываем выбранные студии
+    studio_ids = request.GET.getlist('studios')
+    if studio_ids:
+        queryset = queryset.filter(studio_id__in=studio_ids)
+
+    # Поиск
+    search = request.GET.get('search', '')
+    if search:
+        queryset = queryset.filter(
+            Q(child__fio__icontains=search) |
+            Q(studio__name__icontains=search) |
+            Q(direction__name__icontains=search) |
+            Q(teacher__user__first_name__icontains=search) |
+            Q(teacher__user__last_name__icontains=search) |
+            Q(teacher__user__username__icontains=search)
+        )
+
+    # Учитываем роль пользователя
+    user_role = getattr(request.user, 'role', None)
+    if user_role == 'teacher':
+        try:
+            teacher = Teacher.objects.get(user=request.user)
+            queryset = queryset.filter(teacher=teacher)
+        except Teacher.DoesNotExist:
+            queryset = queryset.none()
+    elif user_role not in ['methodist', 'admin']:
+        queryset = queryset.none()
+
+    # Сортировка
+    sort_by = request.GET.get('sort', 'studio__name')
+    sort_order = request.GET.get('order', 'asc')
+
+    sort_field_mapping = {
+        'child': 'child__fio',
+        'studio': 'studio__name',
+        'direction': 'direction__name',
+        'teacher': 'teacher__fio'
+    }
+
+    if sort_by in sort_field_mapping:
+        sort_field = sort_field_mapping[sort_by]
+    else:
+        sort_field = 'studio__name'
+
+    if sort_order == 'desc':
+        queryset = queryset.order_by(f'-{sort_field}')
+    else:
+        queryset = queryset.order_by(sort_field)
+
+    # Создаём Excel файл
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, Border, Side
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Дети в студиях'
+
+    # Заголовки
+    headers = ['Ребенок', 'Студия', 'Направление', 'Педагог', 'Учебный год', 'Дата записи', 'Дата отчисления']
+    for col_idx, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = Border(left=Side(style='thin'), right=Side(style='thin'),
+                             top=Side(style='thin'), bottom=Side(style='thin'))
+
+    # Данные
+    for row_idx, enrollment in enumerate(queryset, 2):
+        ws.cell(row=row_idx, column=1, value=enrollment.child.fio)
+        ws.cell(row=row_idx, column=2, value=enrollment.studio.name)
+        ws.cell(row=row_idx, column=3, value=enrollment.direction.name)
+        ws.cell(row=row_idx, column=4, value=str(enrollment.teacher))
+        ws.cell(row=row_idx, column=5, value=enrollment.academic_year)
+        ws.cell(row=row_idx, column=6, value=enrollment.enrollment_date.strftime('%d.%m.%Y') if enrollment.enrollment_date else '')
+        ws.cell(row=row_idx, column=7, value=enrollment.date_of_dismissal.strftime('%d.%m.%Y') if enrollment.date_of_dismissal else '')
+
+        # Выравнивание
+        for col_idx in range(1, 8):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = Border(left=Side(style='thin'), right=Side(style='thin'),
+                                 top=Side(style='thin'), bottom=Side(style='thin'))
+
+    # Настройка ширины колонок
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 25
+    ws.column_dimensions['C'].width = 20
+    ws.column_dimensions['D'].width = 25
+    ws.column_dimensions['E'].width = 12
+    ws.column_dimensions['F'].width = 12
+    ws.column_dimensions['G'].width = 12
+
+    # Формируем ответ
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="studio_children.xlsx"'
+    wb.save(response)
+    return response
 
 def get_accessible_studios(user):
     """Получение списка доступных студий в зависимости от роли пользователя"""
@@ -690,6 +894,11 @@ class ChildListView(LoginRequiredMixin, ListView):
         if patronymic:
             queryset = queryset.filter(patronymic__icontains=patronymic)
 
+        # Дети без студии
+        no_studio = self.request.GET.get('no_studio') == 'on'
+        if no_studio:
+            queryset = queryset.filter(studioenrollment__isnull=True)
+
         # Сортировка
         sort_field = self.request.GET.get('sort', 'last_name')
         if sort_field in ['last_name', 'first_name', 'date_of_birth', 'gender']:
@@ -698,6 +907,7 @@ class ChildListView(LoginRequiredMixin, ListView):
             queryset = queryset.order_by(sort_field)
         else:
             queryset = queryset.order_by('last_name', 'first_name')
+
 
         return queryset
 
@@ -1275,7 +1485,7 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
         # Добавляем список разрешенных полей для сортировки
         context['allowed_sort_fields'] = ['child__fio', 'studio__name', 'teacher__fio', 'direction__name']
 
-        # Статистика по отчисленным с учётом роли и доступных студий
+        # Статистика по отчисленным с учётом роли и выбранных студий
         from django.db.models import Q
 
         # Получаем учебный год из профиля
@@ -1291,8 +1501,13 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
             else:
                 current_academic_year = "2025-2026"
 
-        # Базовый queryset для статистики (без фильтров по студии и поиску, но с учётом роли)
+        # Базовый queryset для статистики
         stats_queryset = StudioEnrollment.objects.filter(academic_year=current_academic_year)
+
+        # Учитываем выбранные студии (фильтр)
+        selected_studio_ids = self.request.GET.getlist('studios')
+        if selected_studio_ids:
+            stats_queryset = stats_queryset.filter(studio_id__in=selected_studio_ids)
 
         # Учитываем роль пользователя
         user_role = getattr(self.request.user, 'role', None)
@@ -1314,6 +1529,15 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
         context['dismissed_count'] = dismissed_count
         context['active_count'] = active_count
         context['current_academic_year'] = current_academic_year
+
+        # Считаем уникальных детей
+        unique_all = stats_queryset.values('child').distinct().count()
+        unique_active = stats_queryset.filter(date_of_dismissal__isnull=True).values('child').distinct().count()
+        unique_dismissed = stats_queryset.filter(date_of_dismissal__isnull=False).values('child').distinct().count()
+
+        context['unique_all'] = unique_all
+        context['unique_active'] = unique_active
+        context['unique_dismissed'] = unique_dismissed
 
         return context
 

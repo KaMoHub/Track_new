@@ -6,6 +6,7 @@
 {% block page_title %}<small>Дети в студиях</small>{% endblock %}
 
 {% block page_actions %}
+<div class="btn-group" role="group">
     <a href="{% url 'children:enrollment_create' %}" class="btn btn-primary btn-sm">
         <i class="bi bi-person-plus"></i> Добавить ребенка в студию
     </a>
@@ -14,6 +15,10 @@
             <i class="bi bi-file-earmark-excel"></i> Загрузить Excel
         </a>
     {% endif %}
+    <a href="{% url 'children:export_enrollments_excel' %}?{{ request.GET.urlencode }}" class="btn btn-info btn-sm">
+        <i class="bi bi-file-earmark-excel"></i> Выгрузить в Excel
+    </a>
+</div>
 {% endblock %}
 
 {% block content %}
@@ -22,32 +27,42 @@
         <!-- Компактная статистика и фильтры -->
         <div class="row mb-2">
             <!-- Статистика -->
-            <div class="col-md-4">
-                <div class="card h-100">
-                    <div class="card-header py-1 bg-primary text-white">
-                        <h6 class="card-title mb-0 small">
-                            <i class="bi bi-bar-chart"></i> Статистика ({{ current_academic_year }})
-                        </h6>
-                    </div>
-                    <div class="card-body py-2">
-                        <div class="row text-center">
-                            <div class="col-4">
-                                <small>Всего</small>
-                                <strong class="d-block fs-6">{{ total_enrollments_all }}</strong>
-                            </div>
-                            <div class="col-4">
-                                <small class="text-success">Активные</small>
-                                <strong class="d-block fs-6 text-success">{{ active_count }}</strong>
-                            </div>
-                            <div class="col-4">
-                                <small class="text-danger">Отчисленные</small>
-                                <strong class="d-block fs-6 text-danger">{{ dismissed_count }}</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<!-- Статистика -->
+<div class="col-md-4">
+    <div class="card h-100">
+        <div class="card-header py-1 bg-primary text-white">
+            <div class="text-center" style="font-weight: normal; font-size: 0.85rem;">
+                <i class="bi bi-bar-chart"></i> Статистика ({{ current_academic_year }})
             </div>
-
+        </div>
+        <div class="card-body py-2">
+            <table style="width: 100%; border: none; border-collapse: collapse;">
+                <thead>
+                    <tr style="border: none;">
+                        <th style="width: 33%; border: none; vertical-align: middle; font-weight: normal; font-size: 0.75rem; text-align: center; color: #6c757d;">Всего детей</th>
+                        <th style="width: 33%; border: none; vertical-align: middle; font-weight: normal; font-size: 0.75rem; text-align: center; color: #6c757d;">На текущую дату</th>
+                        <th style="width: 33%; border: none; vertical-align: middle; font-weight: normal; font-size: 0.75rem; text-align: center; color: #6c757d;">Отчисленные</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border: none;">
+                        <td style="border: none; text-align: center;"><strong>{{ total_enrollments_all }}</strong></td>
+                        <td style="border: none; text-align: center;" class="text-success"><strong>{{ active_count }}</strong></td>
+                        <td style="border: none; text-align: center;" class="text-danger"><strong>{{ dismissed_count }}</strong></td>
+                    </tr>
+                    <tr style="border: none;">
+                        <td colspan="3" style="border: none; text-align: center; color: #6c757d; font-size: 0.75rem; padding-top: 5px;">Уникальных</td>
+                    </tr>
+                    <tr style="border: none;">
+                        <td style="border: none; text-align: center;">{{ unique_all }}</td>
+                        <td style="border: none; text-align: center;" class="text-success">{{ unique_active }}</td>
+                        <td style="border: none; text-align: center;" class="text-danger">{{ unique_dismissed }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
             <!-- Фильтры -->
             <div class="col-md-8">
                 <div class="card h-100">

@@ -57,4 +57,6 @@ urlpatterns = [
     path('reports/semester-achievements/', views.SemesterAchievementsReportView.as_view(), name='semester_achievements_report'),
 
     path('reports/monthly-stats/', views.MonthlyStatsAPIView.as_view(), name='monthly_stats_api'),
+    path('export-excel/', views.export_children_excel, name='export_excel'),
+    path('export-enrollments-excel/', views.export_enrollments_excel, name='export_enrollments_excel'),
 ]

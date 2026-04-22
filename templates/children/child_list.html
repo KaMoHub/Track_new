@@ -15,6 +15,9 @@
     <a href="{% url 'children:upload' %}" class="btn btn-success">
         <i class="bi bi-upload"></i> Загрузить из Excel
     </a>
+    <a href="{% url 'children:export_excel' %}?{{ request.GET.urlencode }}" class="btn btn-info">
+        <i class="bi bi-file-earmark-excel"></i> Выгрузить в Excel
+    </a>
 </div>
 {% endif %}
 {% endblock %}
@@ -63,9 +66,19 @@
                             </a>
                         {% endif %}
                     </div>
+                    <div class="col-md-3">
+                        <div class="form-check mt-4">
+                            <input type="checkbox" class="form-check-input" id="show_no_studio" name="no_studio" value="on" {% if request.GET.no_studio == 'on' %}checked{% endif %}>
+                            <label class="form-check-label" for="show_no_studio">
+                                Показать детей без студии
+                            </label>
+                        </div>
+                    </div>
                 </form>
             </div>
         </div>
+
+
 
         <div class="card">
             <div class="card-body">
@@ -268,4 +281,11 @@
     font-size: 0.9em;
 }
 </style>
+
+<script>
+    document.getElementById('show_no_studio')?.addEventListener('change', function() {
+        this.form.submit();
+    });
+</script>
+
 {% endblock %}
