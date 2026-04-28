@@ -1530,10 +1530,64 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
         context['active_count'] = active_count
         context['current_academic_year'] = current_academic_year
 
+        # # Считаем уникальных детей
+        # unique_all = stats_queryset.values('child').distinct().count()
+        # unique_active = stats_queryset.filter(date_of_dismissal__isnull=True).values('child').distinct().count()
+        # unique_dismissed = stats_queryset.filter(date_of_dismissal__isnull=False).values('child').distinct().count()
+        #
+        # context['unique_all'] = unique_all
+        # context['unique_active'] = unique_active
+        # context['unique_dismissed'] = unique_dismissed
+
         # Считаем уникальных детей
-        unique_all = stats_queryset.values('child').distinct().count()
-        unique_active = stats_queryset.filter(date_of_dismissal__isnull=True).values('child').distinct().count()
-        unique_dismissed = stats_queryset.filter(date_of_dismissal__isnull=False).values('child').distinct().count()
+        # Проверяем, есть ли фильтр по студии
+        has_studio_filter = bool(selected_studio_ids)
+
+        if has_studio_filter:
+            # Если есть фильтр по студии — считаем уникальных по минимальному ID студии
+            # Получаем для каждого ребёнка минимальный ID студии среди ВСЕХ его записей (без учёта фильтра)
+            all_stats = StudioEnrollment.objects.filter(academic_year=current_academic_year)
+
+            # Учитываем роль пользователя для базового queryset
+            if user_role == 'teacher':
+                try:
+                    teacher = Teacher.objects.get(user=self.request.user)
+                    all_stats = all_stats.filter(teacher=teacher)
+                except Teacher.DoesNotExist:
+                    all_stats = all_stats.none()
+            elif user_role not in ['methodist', 'admin']:
+                all_stats = all_stats.none()
+
+            # Для каждого ребёнка находим минимальный ID студии
+            child_min_studio = {}
+            for enrollment in all_stats:
+                child_id = enrollment.child_id
+                studio_id = enrollment.studio_id
+                if child_id not in child_min_studio or studio_id < child_min_studio[child_id]:
+                    child_min_studio[child_id] = studio_id
+
+            # Считаем уникальных в отфильтрованной выборке (только те записи, где studio_id == минимальный)
+            unique_all = 0
+            unique_active = 0
+            unique_dismissed = 0
+
+            for enrollment in stats_queryset:
+                child_id = enrollment.child_id
+                studio_id = enrollment.studio_id
+                min_studio = child_min_studio.get(child_id)
+
+                # Учитываем только если эта студия — минимальная для ребёнка
+                if min_studio is not None and studio_id == min_studio:
+                    unique_all += 1
+                    if enrollment.date_of_dismissal:
+                        unique_dismissed += 1
+                    else:
+                        unique_active += 1
+        else:
+            # Без фильтра по студии — обычный подсчёт уникальных
+            unique_all = stats_queryset.values('child').distinct().count()
+            unique_active = stats_queryset.filter(date_of_dismissal__isnull=True).values('child').distinct().count()
+            unique_dismissed = stats_queryset.filter(date_of_dismissal__isnull=False).values('child').distinct().count()
 
         context['unique_all'] = unique_all
         context['unique_active'] = unique_active

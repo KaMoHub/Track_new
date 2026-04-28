@@ -9,9 +9,11 @@
     <a href="{% url 'events:list' %}?status={{ return_status }}" class="btn btn-secondary">
         <i class="bi bi-arrow-left"></i> Назад к списку
     </a>
-    <a href="{% url 'events:add_participants' event.pk %}" class="btn btn-success">
-        <i class="bi bi-person-plus"></i> Добавить участников
-    </a>
+    {% if event.status == 'published' %}
+        <a href="{% url 'events:add_participants' event.pk %}" class="btn btn-success">
+            <i class="bi bi-person-plus"></i> Добавить участников
+        </a>
+    {% endif %}
     {% if user.role == 'methodist' or user.role == 'admin' %}
     <a href="{% url 'events:update' event.pk %}" class="btn btn-warning">
         <i class="bi bi-pencil"></i> Редактировать
@@ -216,9 +218,11 @@
                     <a href="{% url 'events:list' %}?status={{ return_status }}" class="btn btn-secondary">
                         <i class="bi bi-arrow-left"></i> Назад к списку
                     </a>
-                    <a href="{% url 'events:add_participants' event.pk %}" class="btn btn-success">
-                        <i class="bi bi-person-plus"></i> Добавить участников
-                    </a>
+                    {% if event.status == 'published' %}
+                        <a href="{% url 'events:add_participants' event.pk %}" class="btn btn-success">
+                            <i class="bi bi-person-plus"></i> Добавить участников
+                        </a>
+                    {% endif %}
                     {% if user.role == 'methodist' or user.role == 'admin' %}
                     <a href="{% url 'events:update' event.pk %}" class="btn btn-warning">
                         <i class="bi bi-pencil"></i> Редактировать

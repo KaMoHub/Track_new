@@ -18,6 +18,7 @@
 {% endblock %}
 
 {% block content %}
+
 <div class="row">
     <div class="col-md-12">
 
@@ -168,6 +169,7 @@
                                     <th scope="col" class="text-center">Формат</th>
                                     <th scope="col" class="text-center">Статус</th>
                                     <th scope="col" class="text-center">Участников</th>
+                                    <th scope="col" class="align-middle">Педагог</th>
                                     <th scope="col" class="text-center">Действия</th>
                                     <th scope="col" class="align-middle text-center">
                                         <a href="?{% if current_level %}level={{ current_level }}&{% endif %}{% if current_search %}search={{ current_search }}&{% endif %}sort=sort_order&order={% if current_sort == 'sort_order' and current_order == 'asc' %}desc{% else %}asc{% endif %}&status={{ current_status }}"
@@ -226,6 +228,9 @@
                                             {% with participants_count=event.participation_set.count %}
                                                 <span class="badge bg-info">{{ participants_count }}</span>
                                             {% endwith %}
+                                        </td>
+                                        <td class="align-middle">
+                                            {{ event.created_by.get_full_name|default:event.created_by.username|default:"—" }}
                                         </td>
                                         <td>
                                             <div class="btn-group" role="group">
