@@ -12,6 +12,7 @@ from django.utils import timezone
 from .models import Event, ResultType
 import pandas as pd
 from django import forms
+from datetime import datetime
 
 from .forms import EventForm  # Импортируем нашу форму
 
@@ -667,11 +668,8 @@ class AddSingleParticipantView(LoginRequiredMixin, View):
             return HttpResponseRedirect(f"{reverse('events:add_single_participant')}?enrollment={enrollment_id}")
 
 
-# apps/events/views.py (обновляем EventUploadView с отладкой)
-# apps/participation/views.py (обновляем EventUploadView)
-# apps/events/views.py (обновляем EventUploadView с отладкой)
 class EventUploadView(LoginRequiredMixin, FormView):
-    """Загрузка данных конкурсов из Excel"""
+    """Загрузка данных конкурсов из Excel с предварительным логом"""
     template_name = 'events/event_upload.html'
     success_url = reverse_lazy('events:list')
 
@@ -682,231 +680,360 @@ class EventUploadView(LoginRequiredMixin, FormView):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        print("DEBUG: EventUploadView GET запрос")
+        request.session.pop('upload_preview_data', None)
         return render(request, self.template_name)
 
     def post(self, request, *args, **kwargs):
-        print("DEBUG: EventUploadView POST запрос начат")
-        print(f"DEBUG: FILES в запросе: {list(request.FILES.keys())}")
+        if 'confirm' in request.POST:
+            return self.apply_changes(request)
+        return self.analyze_file(request)
 
-        # Проверяем, загружен ли файл
+    def analyze_file(self, request):
+        """Анализ Excel файла, формирование лога"""
         if 'excel_file' not in request.FILES:
-            print("DEBUG: Файл excel_file не найден в запросе")
             messages.error(request, 'Пожалуйста, выберите Excel файл для загрузки.')
             return render(request, self.template_name)
 
         excel_file = request.FILES['excel_file']
-        print(f"DEBUG: Загружен файл: {excel_file.name}, размер: {excel_file.size} байт")
+        upload_mode = request.POST.get('upload_mode', 'add')
 
-        # Проверяем расширение файла
         if not excel_file.name.endswith(('.xlsx', '.xls')):
-            print(f"DEBUG: Неправильное расширение файла: {excel_file.name}")
             messages.error(request, 'Пожалуйста, загрузите файл в формате Excel (.xlsx или .xls).')
             return render(request, self.template_name)
 
         try:
-            print("DEBUG: Начинаем чтение Excel файла")
-            # Читаем Excel файл
             df = pd.read_excel(excel_file, header=0)
-            print(f"DEBUG: Файл прочитан успешно. Форма DataFrame: {df.shape}")
-            print(f"DEBUG: Колонки в файле: {list(df.columns)}")
-
-            # Проверяем, есть ли данные
             if df.empty:
-                print("DEBUG: Excel файл пустой")
                 messages.error(request, 'Excel файл пустой.')
                 return render(request, self.template_name)
 
-            # Получаем настройки соответствия полей
-            name_column = request.POST.get('name_column', 'name')
-            description_column = request.POST.get('description_column', 'description')
-            level_column = request.POST.get('level_column', 'level')
-            deadline_column = request.POST.get('deadline_column', 'application_deadline')
-            result_date_column = request.POST.get('result_date_column', 'result_date')
+            # Определяем колонки
+            npp_col = request.POST.get('npp_column', 'N п/п')
+            name_col = request.POST.get('name_column', 'Название мероприятия')
+            level_col = request.POST.get('level_column', 'Уровень')
+            deadline_col = request.POST.get('deadline_column', 'application_deadline')
+            result_date_col = request.POST.get('result_date_column', 'result_date')
+            direction_col = request.POST.get('direction_column', 'Направление мероприятия')
+            format_col = request.POST.get('format_column', 'participation_format')
+            priority_col = request.POST.get('priority_column', 'Приоритет')
+            id_col = request.POST.get('id_column', 'id') if upload_mode == 'update' else None
 
-            print(f"DEBUG: Настройки колонок:")
-            print(f"  name_column: {name_column}")
-            print(f"  description_column: {description_column}")
-            print(f"  level_column: {level_column}")
-            print(f"  deadline_column: {deadline_column}")
-            print(f"  result_date_column: {result_date_column}")
-
-            # Проверяем, есть ли необходимые колонки
-            required_columns = [name_column, level_column]
-            missing_columns = [col for col in required_columns if col not in df.columns]
-            print(f"DEBUG: Обязательные колонки: {required_columns}")
-            print(f"DEBUG: Отсутствующие колонки: {missing_columns}")
-
-            if missing_columns:
-                messages.error(
-                    request,
-                    f'В Excel файле отсутствуют необходимые колонки: {", ".join(missing_columns)}'
-                )
-                print(f"DEBUG: Ошибка - отсутствуют колонки: {missing_columns}")
+            # Проверка обязательных колонок
+            required = [name_col, level_col]
+            missing = [c for c in required if c not in df.columns]
+            if missing:
+                messages.error(request, f'Отсутствуют обязательные колонки: {", ".join(missing)}')
                 return render(request, self.template_name)
 
-            # Загружаем данные
-            created_count = 0
-            updated_count = 0
+            if upload_mode == 'update' and id_col and id_col not in df.columns:
+                messages.error(request, f'В режиме обновления требуется колонка "{id_col}" с ID конкурсов.')
+                return render(request, self.template_name)
+
+            # Маппинг уровней
+            level_mapping = {
+                'Центровский': 'center', 'Городской': 'city', 'Районный': 'district',
+                'Республиканский': 'republic', 'Региональный': 'regional',
+                'Межрегиональный': 'interregional', 'Всероссийский': 'allrussian',
+                'Международный': 'international','Высший уровень': 'allrussian',
+                'Center': 'center', 'City': 'city', 'District': 'district',
+                'Republic': 'republic', 'Regional': 'regional', 'Interregional': 'interregional',
+                'All-Russian': 'allrussian', 'International': 'international'
+            }
+
+            # Маппинг направлений
+            from .models import CompetitionDirection
+            direction_mapping = {}
+            for d in CompetitionDirection.objects.all():
+                direction_mapping[d.name.lower()] = d.id
+                direction_mapping[d.code.lower()] = d.id
+
+            # Маппинг форматов
+            format_mapping = {
+                'очная': 'offline', 'очно-дистанционная': 'mixed', 'заочная': 'online'
+            }
+
+            preview_data = []
             errors = []
+            index = 0
 
-            print("DEBUG: Начинаем обработку строк")
-            # Обрабатываем строки
-            for index, row in df.iterrows():
-                print(f"DEBUG: Обработка строки {index}")
-                try:
-                    # Получаем данные из строки
-                    name = str(row[name_column]).strip() if pd.notna(row[name_column]) else ''
-                    description = str(row[description_column]).strip() if pd.notna(row[description_column]) and row[
-                        description_column] else name
-                    level_code = str(row[level_column]).strip() if pd.notna(row[level_column]) else ''
-                    application_deadline = row[deadline_column] if deadline_column in df.columns and pd.notna(
-                        row[deadline_column]) else None
-                    result_date = row[result_date_column] if result_date_column in df.columns and pd.notna(
-                        row[result_date_column]) else None
+            for idx, row in df.iterrows():
+                index += 2
 
-                    print(f"DEBUG: Данные строки {index}:")
-                    print(f"  name: '{name}'")
-                    print(f"  description: '{description}'")
-                    print(f"  level_code: '{level_code}'")
-                    print(f"  application_deadline: {application_deadline}")
-                    print(f"  result_date: {result_date}")
+                # Формируем полное название из номера и названия
+                npp = str(row[npp_col]).strip() if npp_col in df.columns and pd.notna(row[npp_col]) else ''
+                name = str(row[name_col]).strip() if pd.notna(row[name_col]) else ''
+                if not name:
+                    continue
+                full_name = f"{npp} {name}" if npp else name
 
-                    # Пропускаем пустые строки
-                    if not name:
-                        print(f"DEBUG: Пропущена пустая строка {index}")
-                        continue
+                level_raw = str(row[level_col]).strip() if pd.notna(row[level_col]) else ''
+                level = level_mapping.get(level_raw, 'center')
 
-                    # Преобразуем даты, если они есть
-                    if application_deadline is not None:
-                        if isinstance(application_deadline, pd.Timestamp):
-                            application_deadline = application_deadline.date()
-                            print(f"DEBUG: Преобразована дата подачи: {application_deadline}")
-                        elif isinstance(application_deadline, str):
-                            # Пытаемся преобразовать строку в дату
-                            try:
-                                from datetime import datetime
-                                application_deadline = datetime.strptime(application_deadline, '%d.%m.%Y').date()
-                                print(f"DEBUG: Преобразована строка даты подачи: {application_deadline}")
-                            except Exception as date_error:
-                                print(f"DEBUG: Ошибка преобразования даты подачи: {date_error}")
-                                application_deadline = None
+                # Обработка дат
+                deadline = None
+                if deadline_col in df.columns and pd.notna(row[deadline_col]):
+                    try:
+                        if isinstance(row[deadline_col], pd.Timestamp):
+                            deadline = row[deadline_col].date()
+                        else:
+                            deadline = datetime.strptime(str(row[deadline_col]), '%d.%m.%Y').date()
+                    except:
+                        errors.append(f'Строка {index}: ошибка преобразования даты подачи')
 
-                    if result_date is not None:
-                        if isinstance(result_date, pd.Timestamp):
-                            result_date = result_date.date()
-                            print(f"DEBUG: Преобразована дата результатов: {result_date}")
-                        elif isinstance(result_date, str):
-                            # Пытаемся преобразовать строку в дату
-                            try:
-                                from datetime import datetime
-                                result_date = datetime.strptime(result_date, '%d.%m.%Y').date()
-                                print(f"DEBUG: Преобразована строка даты результатов: {result_date}")
-                            except Exception as date_error:
-                                print(f"DEBUG: Ошибка преобразования даты результатов: {date_error}")
-                                result_date = None
+                result_date = None
+                if result_date_col in df.columns and pd.notna(row[result_date_col]):
+                    try:
+                        if isinstance(row[result_date_col], pd.Timestamp):
+                            result_date = row[result_date_col].date()
+                        else:
+                            result_date = datetime.strptime(str(row[result_date_col]), '%d.%m.%Y').date()
+                    except:
+                        errors.append(f'Строка {index}: ошибка преобразования даты результатов')
 
-                    # Преобразуем уровень в код
-                    level_mapping = {
-                        'Центровский': 'center',
-                        'Городской': 'city',
-                        'Районный': 'district',
-                        'Республиканский': 'republic',
-                        'Региональный': 'regional',
-                        'Межрегиональный': 'interregional',
-                        'Всероссийский': 'allrussian',
-                        'Международный': 'international',
-                        # Английские варианты
-                        'Center': 'center',
-                        'City': 'city',
-                        'District': 'district',
-                        'Republic': 'republic',
-                        'Regional': 'regional',
-                        'Interregional': 'interregional',
-                        'All-Russian': 'allrussian',
-                        'International': 'international',
-                        # Сокращения
-                        'Ц': 'center',
-                        'Г': 'city',
-                        'Р': 'district',
-                        'РП': 'republic',
-                        'РГ': 'regional',
-                        'МР': 'interregional',
-                        'ВР': 'allrussian',
-                        'М': 'international',
-                    }
+                # Приоритет
+                priority = None
+                if priority_col in df.columns and pd.notna(row[priority_col]):
+                    try:
+                        priority = int(row[priority_col])
+                    except:
+                        errors.append(f'Строка {index}: неверный формат приоритета (должно быть число)')
 
-                    level = level_mapping.get(level_code, 'center')  # По умолчанию центровский
-                    print(f"DEBUG: Преобразованный уровень: {level} (из '{level_code}')")
+                # Направление
+                direction_id = None
+                if direction_col in df.columns and pd.notna(row[direction_col]):
+                    dir_raw = str(row[direction_col]).strip().lower()
+                    direction_id = direction_mapping.get(dir_raw)
 
-                    # Создаем или обновляем конкурс
-                    print(f"DEBUG: Создание/обновление конкурса: {name}")
-                    event, created = Event.objects.get_or_create(
-                        name=name,
-                        defaults={
-                            'description': description,
-                            'level': level,
-                            'application_deadline': application_deadline,
-                            'result_date': result_date,
-                            'is_active': True,
-                            'sort_order': 0,
-                            'created_by': request.user,
-                        }
-                    )
+                # Формат участия
+                participation_format = None
+                if format_col in df.columns and pd.notna(row[format_col]):
+                    fmt_raw = str(row[format_col]).strip().lower()
+                    participation_format = format_mapping.get(fmt_raw)
 
-                    if created:
-                        created_count += 1
-                        print(f"DEBUG: Создан новый конкурс: {name}")
-                    else:
-                        # Обновляем существующий конкурс
-                        event.description = description
-                        event.level = level
-                        event.application_deadline = application_deadline
-                        event.result_date = result_date
-                        event.updated_at = timezone.now()
-                        event.save()
-                        updated_count += 1
-                        print(f"DEBUG: Обновлен конкурс: {name}")
+                # Поиск существующего конкурса
+                existing_event = None
+                row_data = {
+                    'row': index,
+                    'name': full_name,
+                    'level_new': level,
+                    'deadline_new': deadline,
+                    'result_date_new': result_date,
+                    'direction_new': direction_id,
+                    'format_new': participation_format,
+                    'priority_new': priority,
+                }
 
-                except Exception as e:
-                    error_msg = f'Ошибка в строке {index + 1}: {str(e)}'
-                    print(f"DEBUG: {error_msg}")
-                    errors.append(error_msg)
+                if upload_mode == 'update' and id_col:
+                    try:
+                        event_id = int(row[id_col])
+                        existing_event = Event.objects.filter(id=event_id).first()
+                        row_data['id'] = event_id
+                    except:
+                        errors.append(f'Строка {index}: неверный формат ID')
+                else:
+                    existing_event = Event.objects.filter(name=full_name).first()
+                    if existing_event:
+                        row_data['id'] = existing_event.id
 
-            print(
-                f"DEBUG: Завершена обработка. Создано: {created_count}, Обновлено: {updated_count}, Ошибок: {len(errors)}")
+                if existing_event:
+                    changes = []
+                    if existing_event.level != level and level != 'center':
+                        changes.append(f'уровень: {existing_event.level} → {level}')
+                        row_data['level_old'] = existing_event.level
 
-            # Показываем результаты
-            if created_count > 0:
-                messages.success(
-                    request,
-                    f'Успешно создано {created_count} конкурсов.'
-                )
-                print(f"DEBUG: Сообщение об успешном создании: {created_count} конкурсов")
+                    if deadline and existing_event.application_deadline != deadline:
+                        changes.append(f'срок подачи: {existing_event.application_deadline} → {deadline}')
+                        row_data['deadline_old'] = existing_event.application_deadline
 
-            if updated_count > 0:
-                messages.success(
-                    request,
-                    f'Успешно обновлено {updated_count} конкурсов.'
-                )
-                print(f"DEBUG: Сообщение об успешном обновлении: {updated_count} конкурсов")
+                    if result_date and existing_event.result_date != result_date:
+                        changes.append(f'дата результатов: {existing_event.result_date} → {result_date}')
+                        row_data['result_date_old'] = existing_event.result_date
 
-            if errors:
-                for error in errors:
-                    messages.error(request, error)
-                    print(f"DEBUG: Сообщение об ошибке: {error}")
+                    if direction_id and existing_event.direction_id != direction_id:
+                        old_dir = existing_event.direction.name if existing_event.direction else '—'
+                        new_dir = CompetitionDirection.objects.get(id=direction_id).name
+                        changes.append(f'направление: {old_dir} → {new_dir}')
+                        row_data['direction_old'] = existing_event.direction_id
 
-            if created_count == 0 and updated_count == 0 and not errors:
-                messages.info(request, 'Нет данных для загрузки.')
-                print("DEBUG: Нет данных для загрузки")
+                    if participation_format and existing_event.participation_format != participation_format:
+                        old_fmt = existing_event.get_participation_format_display() or '—'
+                        new_fmt = dict(format_mapping).get(participation_format, participation_format)
+                        changes.append(f'формат: {old_fmt} → {new_fmt}')
+                        row_data['format_old'] = existing_event.participation_format
+
+                    if priority and existing_event.sort_order != priority:
+                        changes.append(f'приоритет: {existing_event.sort_order} → {priority}')
+                        row_data['priority_old'] = existing_event.sort_order
+
+                    row_data['changes'] = changes
+                    row_data['action'] = 'update' if changes else 'skip'
+                    row_data['changes_count'] = len(changes)
+                else:
+                    row_data['action'] = 'create'
+                    row_data['changes_count'] = 1
+                    row_data['changes'] = ['новый конкурс']
+
+                preview_data.append(row_data)
+
+            session_data = {
+                'preview': preview_data,
+                'errors': errors,
+                'upload_mode': upload_mode,
+                'original_file': excel_file.name,
+                'npp_col': npp_col,
+                'name_col': name_col,
+                'level_col': level_col,
+                'deadline_col': deadline_col,
+                'result_date_col': result_date_col,
+                'direction_col': direction_col,
+                'format_col': format_col,
+                'priority_col': priority_col,
+                'id_col': id_col,
+            }
+            request.session['upload_preview_data'] = session_data
+
+            return render(request, 'events/event_upload_preview.html', {
+                'preview': preview_data,
+                'errors': errors,
+                'mode': upload_mode,
+                'filename': excel_file.name,
+                'has_changes': any(p['changes_count'] > 0 for p in preview_data)
+            })
 
         except Exception as e:
-            error_msg = f'Ошибка при чтении Excel файла: {str(e)}'
-            print(f"DEBUG: {error_msg}")
-            import traceback
-            print(f"DEBUG: Traceback: {traceback.format_exc()}")
-            messages.error(request, error_msg)
+            messages.error(request, f'Ошибка при чтении файла: {str(e)}')
             return render(request, self.template_name)
 
-        print("DEBUG: Перенаправление на список конкурсов")
-        return HttpResponseRedirect(self.success_url)
+    def apply_changes(self, request):
+        """Применение подтверждённых изменений"""
+        session_data = request.session.get('upload_preview_data')
+        if not session_data:
+            messages.error(request, 'Данные не найдены. Попробуйте загрузить файл заново.')
+            return HttpResponseRedirect(reverse_lazy('events:upload'))
+
+        preview = session_data.get('preview', [])
+        upload_mode = session_data.get('upload_mode', 'add')
+
+        from .models import CompetitionDirection
+
+        created = 0
+        updated = 0
+        skipped = 0
+        errors = []
+
+        for item in preview:
+            if item['action'] == 'skip':
+                skipped += 1
+                continue
+
+            if item['action'] == 'create' and upload_mode == 'add':
+                try:
+                    event = Event.objects.create(
+                        name=item['name'],
+                        level=item['level_new'],
+                        application_deadline=item['deadline_new'],
+                        result_date=item['result_date_new'],
+                        direction_id=item['direction_new'] if item['direction_new'] else None,
+                        participation_format=item['format_new'],
+                        sort_order=item['priority_new'] or 3,
+                        is_active=True,
+                        status='published',
+                        created_by=request.user
+                    )
+                    created += 1
+                except Exception as e:
+                    errors.append(f'{item["name"]}: {str(e)}')
+
+            elif item['action'] == 'update' and upload_mode == 'update':
+                try:
+                    event = Event.objects.get(id=item['id'])
+                    changed = False
+
+                    if 'level_old' in item and item['level_new'] != 'center':
+                        event.level = item['level_new']
+                        changed = True
+                    if 'deadline_old' in item and item['deadline_new']:
+                        event.application_deadline = item['deadline_new']
+                        changed = True
+                    if 'result_date_old' in item and item['result_date_new']:
+                        event.result_date = item['result_date_new']
+                        changed = True
+                    if 'direction_old' in item and item['direction_new']:
+                        event.direction_id = item['direction_new']
+                        changed = True
+                    if 'format_old' in item and item['format_new']:
+                        event.participation_format = item['format_new']
+                        changed = True
+                    if 'priority_old' in item and item['priority_new']:
+                        event.sort_order = item['priority_new']
+                        changed = True
+
+                    if changed:
+                        event.save()
+                        updated += 1
+                    else:
+                        skipped += 1
+                except Exception as e:
+                    errors.append(f'ID {item["id"]}: {str(e)}')
+
+        request.session.pop('upload_preview_data', None)
+
+        if created:
+            messages.success(request, f'✅ Создано конкурсов: {created}')
+        if updated:
+            messages.success(request, f'✅ Обновлено конкурсов: {updated}')
+        if skipped:
+            messages.info(request, f'⏭️ Пропущено (без изменений): {skipped}')
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+
+        self.save_log_to_file(session_data, created, updated, skipped, errors)
+
+        return HttpResponseRedirect(reverse_lazy('events:list'))
+
+    def save_log_to_file(self, session_data, created, updated, skipped, errors):
+        """Сохраняет лог загрузки в файл"""
+        from datetime import datetime
+        import os
+        from django.conf import settings
+
+        logs_dir = os.path.join(settings.BASE_DIR, 'logs')
+        os.makedirs(logs_dir, exist_ok=True)
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"upload_log_{timestamp}.txt"
+        filepath = os.path.join(logs_dir, filename)
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write("=" * 80 + "\n")
+            f.write(f"ЛОГ ЗАГРУЗКИ КОНКУРСОВ\n")
+            f.write(f"Дата: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}\n")
+            f.write(f"Файл: {session_data.get('original_file', 'unknown')}\n")
+            f.write(f"Режим: {session_data.get('upload_mode', 'unknown')}\n")
+            f.write("=" * 80 + "\n\n")
+
+            f.write(f"Создано: {created}\n")
+            f.write(f"Обновлено: {updated}\n")
+            f.write(f"Пропущено: {skipped}\n")
+            f.write(f"Ошибок: {len(errors)}\n\n")
+
+            if errors:
+                f.write("ОШИБКИ:\n")
+                for error in errors:
+                    f.write(f"  - {error}\n")
+                f.write("\n")
+
+            f.write("ДЕТАЛИ:\n")
+            f.write("-" * 80 + "\n")
+            for item in session_data.get('preview', []):
+                if item['action'] != 'skip':
+                    f.write(f"Строка {item['row']}: {item['action'].upper()} | {item['name']}\n")
+                    for ch in item['changes']:
+                        if ch != 'новый конкурс':
+                            f.write(f"    {ch}\n")
+            f.write("-" * 80 + "\n")
+
+        print(f"Лог сохранён: {filepath}")
+
+
