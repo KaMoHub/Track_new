@@ -1272,6 +1272,10 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
             try:
                 teacher = Teacher.objects.get(user=user)
                 # Получаем ID студий, к которым у педагога есть доступ
+                # accessible_studio_ids = TeacherStudioAccess.objects.filter(
+                #     teacher=teacher
+                # ).values_list('studio_id', flat=True)
+                # ✅ Получаем доступные студии через TeacherStudioAccess
                 accessible_studio_ids = TeacherStudioAccess.objects.filter(
                     teacher=teacher
                 ).values_list('studio_id', flat=True)
@@ -1413,7 +1417,13 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
         if user_role == 'teacher':
             try:
                 teacher = Teacher.objects.get(user=self.request.user)
-                stats_queryset = stats_queryset.filter(teacher=teacher)
+                # stats_queryset = stats_queryset.filter(teacher=teacher)
+                # Получаем доступные студии через TeacherStudioAccess
+                accessible_studio_ids = TeacherStudioAccess.objects.filter(
+                    teacher=teacher
+                ).values_list('studio_id', flat=True)
+                # Фильтруем по студиям, а не по полю teacher
+                stats_queryset = stats_queryset.filter(studio_id__in=accessible_studio_ids)
             except Teacher.DoesNotExist:
                 stats_queryset = stats_queryset.none()
         elif user_role not in ['methodist', 'admin']:
@@ -1451,7 +1461,13 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
             if user_role == 'teacher':
                 try:
                     teacher = Teacher.objects.get(user=self.request.user)
-                    all_stats = all_stats.filter(teacher=teacher)
+                    #all_stats = all_stats.filter(teacher=teacher)
+                    # ✅ Получаем доступные студии через TeacherStudioAccess
+                    accessible_studio_ids = TeacherStudioAccess.objects.filter(
+                        teacher=teacher
+                    ).values_list('studio_id', flat=True)
+                    # ✅ Фильтруем по студиям
+                    all_stats = all_stats.filter(studio_id__in=accessible_studio_ids)
                 except Teacher.DoesNotExist:
                     all_stats = all_stats.none()
             elif user_role not in ['methodist', 'admin']:
