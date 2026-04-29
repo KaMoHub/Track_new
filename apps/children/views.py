@@ -495,7 +495,7 @@ class ChildrenStudioUploadView(LoginRequiredMixin, View):
                 return render(request, self.template_name)
 
             # Проверяем обязательные колонки
-            required_columns = ['FIO', 'BD', 'Pol', 'Direction', 'Studio']
+            required_columns = ['FIO', 'BD', 'Pol']
             missing_columns = [col for col in required_columns if col not in df.columns]
             print(f"DEBUG: Обязательные колонки: {required_columns}")
             print(f"DEBUG: Отсутствующие колонки: {missing_columns}")
@@ -518,18 +518,16 @@ class ChildrenStudioUploadView(LoginRequiredMixin, View):
                 print(f"DEBUG: Обработка строки {index + 2}")
                 try:
                     # Получаем данные из строки
+
                     fio = str(row['FIO']).strip() if pd.notna(row['FIO']) else ''
                     bd = row['BD'] if pd.notna(row['BD']) else None
                     pol = str(row['Pol']).strip() if pd.notna(row['Pol']) else 'M'
-                    direction_name = str(row['Direction']).strip() if pd.notna(row['Direction']) else ''
-                    studio_name = str(row['Studio']).strip() if pd.notna(row['Studio']) else ''
 
                     print(f"DEBUG: Данные строки {index + 2}:")
                     print(f"  FIO: '{fio}'")
                     print(f"  BD: {bd}")
                     print(f"  Pol: '{pol}'")
-                    print(f"  Direction: '{direction_name}'")
-                    print(f"  Studio: '{studio_name}'")
+
 
                     # Пропускаем пустые строки
                     if not fio:
@@ -601,7 +599,19 @@ class ChildrenStudioUploadView(LoginRequiredMixin, View):
                     print(f"DEBUG: Преобразованный пол: {gender} (исходное значение: '{pol}')")
 
                     # Создаем или обновляем ребенка (БЕЗ ПОЛЯ age)
+                    n1, n2, n3 = None, None, None
+
+                    space = fio.split()
+                    print(space)
+                    n1 = space[0]
+                    n2 = space[1]
+                    space.pop(0)
+                    space.pop(0)
+                    n3 = ''.join(space)
                     child, child_created = Child.objects.get_or_create(
+                        last_name = n1,
+                        first_name = n2,
+                        patronymic = n3,
                         fio=fio,
                         date_of_birth=date_of_birth,
                         defaults={
@@ -620,101 +630,6 @@ class ChildrenStudioUploadView(LoginRequiredMixin, View):
                         print(f"DEBUG: Создан ребенок: {fio}")
 
                     # Обрабатываем направление и студию - ищем в базе
-                    if direction_name and studio_name:
-                        print(f"DEBUG: Обработка направления '{direction_name}' и студии '{studio_name}'")
-
-                        # Ищем направление в базе
-                        try:
-                            direction = Direction.objects.get(name=direction_name)
-                            print(f"DEBUG: Найдено направление: {direction.name}")
-                        except Direction.DoesNotExist:
-                            error_msg = f'Направление "{direction_name}" не найдено в базе'
-                            print(f"DEBUG: {error_msg}")
-                            errors.append(f'Строка {index + 2}: {error_msg}')
-                            error_details.append(f'Строка {index + 2}: {error_msg}')
-                            continue
-
-                        # Ищем студию в базе
-                        try:
-                            studio = Studio.objects.get(name=studio_name)
-                            print(f"DEBUG: Найдена студия: {studio.name}")
-                        except Studio.DoesNotExist:
-                            error_msg = f'Студия "{studio_name}" не найдена в базе'
-                            print(f"DEBUG: {error_msg}")
-                            errors.append(f'Строка {index + 2}: {error_msg}')
-                            error_details.append(f'Строка {index + 2}: {error_msg}')
-                            continue
-
-                        # Ищем педагога по студии (исправленная логика)
-                        try:
-                            print(f"DEBUG: Поиск педагога для студии '{studio_name}'")
-
-                            # Ищем доступы к этой студии
-                            studio_accesses = TeacherStudioAccess.objects.filter(
-                                studio=studio
-                            ).select_related('teacher__user')
-
-                            if not studio_accesses.exists():
-                                error_msg = f'Для студии "{studio_name}" не найден педагог'
-                                print(f"DEBUG: {error_msg}")
-                                errors.append(f'Строка {index + 2}: {error_msg}')
-                                error_details.append(f'Строка {index + 2}: {error_msg}')
-                                continue
-
-                            # Фильтруем только педагогов (исключаем методистов и админов)
-                            valid_teachers = []
-                            for access in studio_accesses:
-                                if access.teacher.user.role == 'teacher':  # Только педагоги
-                                    valid_teachers.append(access.teacher)
-
-                            if not valid_teachers:
-                                error_msg = f'Для студии "{studio_name}" не найден педагог (только методисты/админы)'
-                                print(f"DEBUG: {error_msg}")
-                                errors.append(f'Строка {index + 2}: {error_msg}')
-                                error_details.append(f'Строка {index + 2}: {error_msg}')
-                                continue
-
-                            # Берем первого попавшегося педагога (предполагаем 1 студия = 1 педагог)
-                            teacher = valid_teachers[0]
-                            print(f"DEBUG: Найден педагог: {teacher}")
-
-                        except Exception as e:
-                            error_msg = f'Ошибка при поиске педагога для студии "{studio_name}": {str(e)}'
-                            print(f"DEBUG: {error_msg}")
-                            import traceback
-                            print(f"DEBUG: Traceback: {traceback.format_exc()}")
-                            errors.append(f'Строка {index + 2}: {error_msg}')
-                            error_details.append(f'Строка {index + 2}: {error_msg}')
-                            continue
-
-                        # Создаем запись в студии (если еще не существует)
-                        from datetime import date
-                        current_year = date.today().year
-                        next_year = current_year + 1
-                        academic_year = f"{current_year}-{next_year}"
-
-                        enrollment_exists = StudioEnrollment.objects.filter(
-                            child=child,
-                            studio=studio,
-                            academic_year=academic_year
-                        ).exists()
-
-                        if not enrollment_exists:
-                            print(f"DEBUG: Создание записи в студии для {academic_year}")
-
-                            enrollment = StudioEnrollment.objects.create(
-                                child=child,
-                                studio=studio,
-                                direction=direction,
-                                teacher=teacher,  # Используем найденного педагога
-                                academic_year=academic_year,
-                            )
-                            created_enrollments += 1
-                            print(f"DEBUG: Создана запись в студии: {child.fio} -> {studio.name} ({academic_year})")
-                        else:
-                            print(
-                                f"DEBUG: Запись в студии уже существует: {child.fio} -> {studio.name} ({academic_year})")
-                            skipped_records += 1
 
                 except Exception as e:
                     error_msg = f'Ошибка в строке {index + 2}: {str(e)}'
@@ -728,7 +643,6 @@ class ChildrenStudioUploadView(LoginRequiredMixin, View):
             print(f"DEBUG: Итоги загрузки:")
             print(f"  Создано детей: {created_children}")
             print(f"  Обновлено детей: {updated_children}")
-            print(f"  Создано записей в студиях: {created_enrollments}")
             print(f"  Пропущено записей: {skipped_records}")
             print(f"  Ошибок: {len(errors)}")
 
@@ -753,11 +667,7 @@ class ChildrenStudioUploadView(LoginRequiredMixin, View):
                     f'Успешно обновлено {updated_children} детей.'
                 )
 
-            if created_enrollments > 0:
-                messages.success(
-                    request,
-                    f'Успешно создано {created_enrollments} записей в студии.'
-                )
+
 
             if skipped_records > 0:
                 messages.info(
