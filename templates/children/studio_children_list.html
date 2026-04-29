@@ -1,4 +1,4 @@
-<!-- templates/children/studio_children_list.html (без колонки учебного года) -->
+<!-- templates/children/studio_children_list.html -->
 {% extends 'base.html' %}
 
 {% block title %}Дети в студиях - Путь к успеху{% endblock %}
@@ -27,42 +27,41 @@
         <!-- Компактная статистика и фильтры -->
         <div class="row mb-2">
             <!-- Статистика -->
-<!-- Статистика -->
-<div class="col-md-4">
-    <div class="card h-100">
-        <div class="card-header py-1 bg-primary text-white">
-            <div class="text-center" style="font-weight: normal; font-size: 0.85rem;">
-                <i class="bi bi-bar-chart"></i> Статистика ({{ current_academic_year }})
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-header py-1 bg-primary text-white">
+                        <div class="text-center" style="font-weight: normal; font-size: 0.85rem;">
+                            <i class="bi bi-bar-chart"></i> Статистика ({{ current_academic_year }})
+                        </div>
+                    </div>
+                    <div class="card-body py-2">
+                        <table style="width: 100%; border: none; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border: none;">
+                                    <th style="width: 33%; border: none; vertical-align: middle; font-weight: normal; font-size: 0.75rem; text-align: center; color: #6c757d;">Всего детей</th>
+                                    <th style="width: 33%; border: none; vertical-align: middle; font-weight: normal; font-size: 0.75rem; text-align: center; color: #6c757d;">На текущую дату</th>
+                                    <th style="width: 33%; border: none; vertical-align: middle; font-weight: normal; font-size: 0.75rem; text-align: center; color: #6c757d;">Отчисленные</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border: none;">
+                                    <td style="border: none; text-align: center;"><strong>{{ total_enrollments_all }}</strong></td>
+                                    <td style="border: none; text-align: center;" class="text-success"><strong>{{ active_count }}</strong></td>
+                                    <td style="border: none; text-align: center;" class="text-danger"><strong>{{ dismissed_count }}</strong></td>
+                                </tr>
+                                <tr style="border: none;">
+                                    <td colspan="3" style="border: none; text-align: center; color: #6c757d; font-size: 0.75rem; padding-top: 5px;">Уникальных</td>
+                                </tr>
+                                <tr style="border: none;">
+                                    <td style="border: none; text-align: center;">{{ unique_all }}</td>
+                                    <td style="border: none; text-align: center;" class="text-success">{{ unique_active }}</td>
+                                    <td style="border: none; text-align: center;" class="text-danger">{{ unique_dismissed }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
-        </div>
-        <div class="card-body py-2">
-            <table style="width: 100%; border: none; border-collapse: collapse;">
-                <thead>
-                    <tr style="border: none;">
-                        <th style="width: 33%; border: none; vertical-align: middle; font-weight: normal; font-size: 0.75rem; text-align: center; color: #6c757d;">Всего детей</th>
-                        <th style="width: 33%; border: none; vertical-align: middle; font-weight: normal; font-size: 0.75rem; text-align: center; color: #6c757d;">На текущую дату</th>
-                        <th style="width: 33%; border: none; vertical-align: middle; font-weight: normal; font-size: 0.75rem; text-align: center; color: #6c757d;">Отчисленные</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr style="border: none;">
-                        <td style="border: none; text-align: center;"><strong>{{ total_enrollments_all }}</strong></td>
-                        <td style="border: none; text-align: center;" class="text-success"><strong>{{ active_count }}</strong></td>
-                        <td style="border: none; text-align: center;" class="text-danger"><strong>{{ dismissed_count }}</strong></td>
-                    </tr>
-                    <tr style="border: none;">
-                        <td colspan="3" style="border: none; text-align: center; color: #6c757d; font-size: 0.75rem; padding-top: 5px;">Уникальных</td>
-                    </tr>
-                    <tr style="border: none;">
-                        <td style="border: none; text-align: center;">{{ unique_all }}</td>
-                        <td style="border: none; text-align: center;" class="text-success">{{ unique_active }}</td>
-                        <td style="border: none; text-align: center;" class="text-danger">{{ unique_dismissed }}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
             <!-- Фильтры -->
             <div class="col-md-8">
                 <div class="card h-100">
@@ -107,6 +106,7 @@
                     </div>
                 </div>
             </div>
+        </div>
 
         <!-- Список детей в студиях -->
         <div class="card">
@@ -122,9 +122,6 @@
                 {% if children %}
                     <div class="table-responsive">
                         <table class="table table-sm table-striped table-hover mb-0">
-                            <!-- templates/children/studio_children_list.html (исправленный заголовок таблицы) -->
-                            <!-- templates/children/studio_children_list.html (исправленный заголовок таблицы) -->
-                            <!-- templates/children/studio_children_list.html (полностью переделываем заголовок таблицы) -->
                             <thead class="table-primary">
                                 <tr>
                                     <!-- Колонка № -->
@@ -134,11 +131,11 @@
 
                                     <!-- Сортировка по ребенку -->
                                     <th scope="col" class="align-middle">
-                                        <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=child__fio&order={% if current_sort == 'child__fio' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+                                        <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=child&order={% if current_sort == 'child' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
                                            class="text-decoration-none text-dark fw-bold small">
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span>Ребенок</span>
-                                                {% if current_sort == 'child__fio' %}
+                                                {% if current_sort == 'child' %}
                                                     {% if current_order == 'asc' %}
                                                         <i class="bi bi-sort-alpha-down text-primary"></i>
                                                     {% else %}
@@ -153,11 +150,11 @@
 
                                     <!-- Сортировка по студии -->
                                     <th scope="col" class="align-middle">
-                                        <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=studio__name&order={% if current_sort == 'studio__name' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+                                        <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=studio&order={% if current_sort == 'studio' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
                                            class="text-decoration-none text-dark fw-bold small">
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span>Студия</span>
-                                                {% if current_sort == 'studio__name' %}
+                                                {% if current_sort == 'studio' %}
                                                     {% if current_order == 'asc' %}
                                                         <i class="bi bi-sort-alpha-down text-primary"></i>
                                                     {% else %}
@@ -172,11 +169,11 @@
 
                                     <!-- Сортировка по направлению -->
                                     <th scope="col" class="align-middle">
-                                        <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=direction__name&order={% if current_sort == 'direction__name' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+                                        <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=direction&order={% if current_sort == 'direction' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
                                            class="text-decoration-none text-dark fw-bold small">
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span>Направление</span>
-                                                {% if current_sort == 'direction__name' %}
+                                                {% if current_sort == 'direction' %}
                                                     {% if current_order == 'asc' %}
                                                         <i class="bi bi-sort-alpha-down text-primary"></i>
                                                     {% else %}
@@ -191,11 +188,11 @@
 
                                     <!-- Сортировка по педагогу -->
                                     <th scope="col" class="align-middle">
-                                        <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=teacher__fio&order={% if current_sort == 'teacher__fio' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
+                                        <a href="?{% for studio_id in current_studios %}studios={{ studio_id }}&{% endfor %}{% if current_search %}search={{ current_search }}&{% endif %}sort=teacher&order={% if current_sort == 'teacher' and current_order == 'asc' %}desc{% else %}asc{% endif %}"
                                            class="text-decoration-none text-dark fw-bold small">
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span>Педагог</span>
-                                                {% if current_sort == 'teacher__fio' %}
+                                                {% if current_sort == 'teacher' %}
                                                     {% if current_order == 'asc' %}
                                                         <i class="bi bi-sort-alpha-down text-primary"></i>
                                                     {% else %}
@@ -262,7 +259,6 @@
                                                 </a>
                                             </div>
                                         </td>
-
                                         <td class="small text-center">
                                             {{ enrollment.date_of_dismissal|date:"d.m.Y"|default:"—" }}
                                         </td>
@@ -330,7 +326,6 @@
     </div>
 </div>
 {% endblock %}
-
 
 {% block extra_js %}
 <script>

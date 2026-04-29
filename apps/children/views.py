@@ -1315,14 +1315,15 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
             print(f"DEBUG: Записей после поиска: {queryset.count()}")
 
         # Сортировка
-        sort_by = self.request.GET.get('sort', 'studio__name')
+        #sort_by = self.request.GET.get('sort', 'studio__name')
+        sort_by = self.request.GET.get('sort', 'child')
         sort_order = self.request.GET.get('order', 'asc')
 
         sort_field_mapping = {
             'child': 'child__fio',
             'studio': 'studio__name',
             'direction': 'direction__name',
-            'teacher': 'teacher__fio'
+            'teacher': 'teacher__user__last_name'
         }
 
         if sort_by in sort_field_mapping:
@@ -1377,7 +1378,7 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
         context['current_search'] = self.request.GET.get('search', '')
 
         # Передаем текущие значения сортировки
-        context['current_sort'] = self.request.GET.get('sort', 'studio__name')
+        context['current_sort'] = self.request.GET.get('sort', 'child')
         context['current_order'] = self.request.GET.get('order', 'asc')
 
         # Исправленная статистика - учитываем фильтры
