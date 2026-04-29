@@ -23,7 +23,7 @@ class ParticipationListView(BaseParticipationView, ListView):
         user = self.request.user
         queryset = Participation.objects.select_related(
             'child', 'event', 'result_type', 'enrollment__studio', 'enrollment__teacher'
-        ).order_by('-report_date', 'child__fio')
+        ).order_by('child__fio', '-report_date')
 
         # Фильтрация по доступу в зависимости от роли пользователя
         if hasattr(user, 'role'):
@@ -222,14 +222,13 @@ class ParticipationCreateView(BaseParticipationView, CreateView):
         current_user = self.request.user
         print(f"DEBUG: Проверяем дубликат - enrollment={enrollment.id}, event={event.id}, created_by={current_user.id}")
         # Проверяем существование участия
-        existing = Participation.objects.filter(
-            enrollment=enrollment,
-            event=event,
-            created_by=current_user
-        ).exists()
+        # existing = Participation.objects.filter(
+        #     enrollment=enrollment,
+        #     event=event,
+        #     created_by=current_user
+        # ).exists()
 
-        print(f"DEBUG: Дубликат найден: {existing}")
-
+        # print(f"DEBUG: Дубликат найден: {existing}")
 
         print(f"DEBUG: Начало валидации участия для ребенка {child.fio} в конкурсе {event.name}")
 
@@ -238,13 +237,13 @@ class ParticipationCreateView(BaseParticipationView, CreateView):
             with transaction.atomic():
                 print(f"DEBUG: Начало транзакции")
                 # Проверяем существование участия
-                if Participation.objects.filter(enrollment=enrollment, event=event, created_by=self.request.user).exists():
-                    print(f"DEBUG: Участие уже существует")
-                    messages.error(
-                        self.request,
-                        f'Ребенок {child.fio} уже участвует в конкурсе "{event.name}"'
-                    )
-                    return self.form_invalid(form)
+                # if Participation.objects.filter(enrollment=enrollment, event=event, created_by=self.request.user).exists():
+                #     print(f"DEBUG: Участие уже существует")
+                #     messages.error(
+                #         self.request,
+                #         f'Ребенок {child.fio} уже участвует в конкурсе "{event.name}"'
+                #     )
+                #     return self.form_invalid(form)
 
                 file_upload = self.request.FILES.get('file_upload')
                 if file_upload and file_upload.size > 100 * 1024 * 1024:  # 100MB
@@ -253,7 +252,6 @@ class ParticipationCreateView(BaseParticipationView, CreateView):
                         f'Файл слишком большой. Размер: {file_upload.size / 1024 / 1024:.2f} MB. Максимум: 100 MB'
                     )
                     return self.form_invalid(form)
-
 
                 try:
                     print(f"DEBUG: Начало сохранения участия")
@@ -266,8 +264,6 @@ class ParticipationCreateView(BaseParticipationView, CreateView):
                         f'Участие не было сохранено из-за ошибки: {str(e)}'
                     )
                     return self.form_invalid(form)
-
-
 
                 # Обрабатываем загрузку файла, если она есть
                 file_upload = self.request.FILES.get('file_upload')
@@ -294,6 +290,7 @@ class ParticipationCreateView(BaseParticipationView, CreateView):
                 f'Ребенок {child.fio} уже участвует в конкурсе "{event.name}"'
             )
             return self.form_invalid(form)
+
 
     def handle_file_upload(self, file_upload):
         """Обработка загрузки файла"""

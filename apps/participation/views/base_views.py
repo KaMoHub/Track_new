@@ -36,8 +36,14 @@ class BaseParticipationView(LoginRequiredMixin):
             if user.role == 'teacher':
                 try:
                     teacher = Teacher.objects.get(user=user)
-                    return StudioEnrollment.objects.filter(
+                    # Получаем ID студий, к которым у педагога есть доступ
+                    from ...children.models import TeacherStudioAccess
+                    accessible_studio_ids = TeacherStudioAccess.objects.filter(
                         teacher=teacher
+                    ).values_list('studio_id', flat=True)
+                    # Возвращаем все записи в этих студиях
+                    return StudioEnrollment.objects.filter(
+                        studio_id__in=accessible_studio_ids
                     ).select_related('child', 'studio').order_by('child__fio')
                 except Teacher.DoesNotExist:
                     return StudioEnrollment.objects.none()

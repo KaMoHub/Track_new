@@ -385,7 +385,7 @@ class AddParticipantsView(LoginRequiredMixin, View):
         event = get_object_or_404(Event, pk=pk)
 
         # Получаем доступных детей в зависимости от роли пользователя
-        from ..children.models import StudioEnrollment, Teacher
+        from ..children.models import StudioEnrollment, Teacher,  TeacherStudioAccess
         from ..participation.models import Participation
         from datetime import date
 
@@ -393,13 +393,22 @@ class AddParticipantsView(LoginRequiredMixin, View):
         if hasattr(user, 'role') and user.role == 'teacher':
             try:
                 teacher = Teacher.objects.get(user=user)
-                # Только дети этого педагога
-                enrollments = StudioEnrollment.objects.filter(teacher=teacher).select_related('child', 'studio')
+                # Получаем ID студий, к которым у педагога есть доступ
+                accessible_studio_ids = TeacherStudioAccess.objects.filter(
+                    teacher=teacher
+                ).values_list('studio_id', flat=True)
+                # Все зачисления в этих студиях (без фильтра по полю teacher)
+                enrollments = StudioEnrollment.objects.filter(
+                    studio_id__in=accessible_studio_ids
+                ).select_related('child', 'studio').order_by('child__fio')
+
             except Teacher.DoesNotExist:
                 enrollments = StudioEnrollment.objects.none()
         else:
             # Для методистов и админов - все дети
-            enrollments = StudioEnrollment.objects.select_related('child', 'studio')
+            enrollments = StudioEnrollment.objects.select_related(
+                'child', 'studio'
+            ).order_by('child__fio')
 
         # ИСКЛЮЧАЕМ ЗАПИСИ, которые уже участвуют в этом конкурсе (проверка по enrollment)
         existing_participations = Participation.objects.filter(event=event).values_list('enrollment_id', flat=True)
@@ -527,13 +536,21 @@ class AddParticipantsView(LoginRequiredMixin, View):
 
     def get_available_enrollments(self, user, event):
         """Вспомогательный метод для получения доступных записей"""
-        from ..children.models import StudioEnrollment, Teacher
+        from ..children.models import StudioEnrollment, Teacher, TeacherStudioAccess
         from ..participation.models import Participation
 
         if hasattr(user, 'role') and user.role == 'teacher':
             try:
                 teacher = Teacher.objects.get(user=user)
-                enrollments = StudioEnrollment.objects.filter(teacher=teacher).select_related('child', 'studio')
+                # Получаем ID студий, к которым у педагога есть доступ
+                accessible_studio_ids = TeacherStudioAccess.objects.filter(
+                    teacher=teacher
+                ).values_list('studio_id', flat=True)
+                # Все зачисления в этих студиях
+                enrollments = StudioEnrollment.objects.filter(
+                    studio_id__in=accessible_studio_ids
+                ).select_related('child', 'studio').order_by('child__fio')
+
             except Teacher.DoesNotExist:
                 enrollments = StudioEnrollment.objects.none()
         else:
@@ -688,6 +705,7 @@ class EventUploadView(LoginRequiredMixin, FormView):
             return self.apply_changes(request)
         return self.analyze_file(request)
 
+
     def analyze_file(self, request):
         """Анализ Excel файла, формирование лога"""
         if 'excel_file' not in request.FILES:
@@ -734,7 +752,7 @@ class EventUploadView(LoginRequiredMixin, FormView):
                 'Центровский': 'center', 'Городской': 'city', 'Районный': 'district',
                 'Республиканский': 'republic', 'Региональный': 'regional',
                 'Межрегиональный': 'interregional', 'Всероссийский': 'allrussian',
-                'Международный': 'international','Высший уровень': 'allrussian',
+                'Международный': 'international', 'Высший уровень': 'allrussian',
                 'Center': 'center', 'City': 'city', 'District': 'district',
                 'Republic': 'republic', 'Regional': 'regional', 'Interregional': 'interregional',
                 'All-Russian': 'allrussian', 'International': 'international'
@@ -827,15 +845,30 @@ class EventUploadView(LoginRequiredMixin, FormView):
                     try:
                         event_id = int(row[id_col])
                         existing_event = Event.objects.filter(id=event_id).first()
-                        row_data['id'] = event_id
+                        if existing_event:
+                            row_data['id'] = event_id
+                        else:
+                            # ID не найден в БД — пропускаем с ошибкой
+                            errors.append(f'Строка {index}: ID={event_id} не найден в базе данных')
+                            row_data['action'] = 'error'
+                            row_data['changes'] = ['❌ ID не найден']
+                            row_data['changes_count'] = 0
+                            preview_data.append(row_data)
+                            continue
                     except:
                         errors.append(f'Строка {index}: неверный формат ID')
+                        row_data['action'] = 'error'
+                        row_data['changes'] = ['❌ Неверный формат ID']
+                        row_data['changes_count'] = 0
+                        preview_data.append(row_data)
+                        continue
                 else:
                     existing_event = Event.objects.filter(name=full_name).first()
                     if existing_event:
                         row_data['id'] = existing_event.id
 
                 if existing_event:
+                    # Запись существует — формируем лог изменений
                     changes = []
                     if existing_event.level != level and level != 'center':
                         changes.append(f'уровень: {existing_event.level} → {level}')
@@ -904,6 +937,7 @@ class EventUploadView(LoginRequiredMixin, FormView):
             messages.error(request, f'Ошибка при чтении файла: {str(e)}')
             return render(request, self.template_name)
 
+
     def apply_changes(self, request):
         """Применение подтверждённых изменений"""
         session_data = request.session.get('upload_preview_data')
@@ -923,6 +957,10 @@ class EventUploadView(LoginRequiredMixin, FormView):
 
         for item in preview:
             if item['action'] == 'skip':
+                skipped += 1
+                continue
+
+            if item['action'] == 'error':
                 skipped += 1
                 continue
 

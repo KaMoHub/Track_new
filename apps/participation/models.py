@@ -57,7 +57,7 @@ class Participation(models.Model):
     class Meta:
         verbose_name = 'Участие'
         verbose_name_plural = 'Участия'
-        unique_together = ['enrollment', 'event', 'created_by']
+        #unique_together = ['enrollment', 'event', 'created_by']
         ordering = ['-report_date', 'child__fio']
 
     def __str__(self):

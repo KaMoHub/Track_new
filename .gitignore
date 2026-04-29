@@ -187,6 +187,7 @@ track/settings.py
 track/settings.py~
 track/wsgi.py
 *.*~
+*.py~
 Administration/
 
 static/
