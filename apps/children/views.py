@@ -1238,7 +1238,6 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
             end = self.request.user.profile.academic_year_end
             current_academic_year = f"{start}-{end}"
         else:
-            # Если у пользователя нет профиля, берём из любого профиля или значение по умолчанию
             from apps.accounts.models import UserProfile
             profile = UserProfile.objects.first()
             if profile:
@@ -1250,12 +1249,6 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
         print(f"DEBUG: Пользователь: {user.username} (ID: {user.id})")
         queryset = StudioEnrollment.objects.select_related(
             'child', 'studio', 'direction', 'teacher'
-        )
-        print(f"DEBUG: начальный queryset: {queryset.count()}")
-
-        # Получаем все записи в студиях
-        queryset = StudioEnrollment.objects.select_related(
-            'child', 'studio',  'direction', 'teacher'
         )
 
         # Фильтр по учебному году
@@ -1275,15 +1268,15 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
 
         # Фильтруем по доступу в зависимости от роли пользователя
         if user_role == 'teacher':
-            print("DEBUG: Фильтруем для педагога")
-            # Для педагогов - только их студии
+            print("DEBUG: Фильтруем для педагога по доступу к студиям")
             try:
                 teacher = Teacher.objects.get(user=user)
-                # Получаем записи детей, записанных к этому педагогу
-                accessible_enrollments = StudioEnrollment.objects.filter(
+                # Получаем ID студий, к которым у педагога есть доступ
+                accessible_studio_ids = TeacherStudioAccess.objects.filter(
                     teacher=teacher
-                ).values_list('id', flat=True)
-                queryset = queryset.filter(id__in=accessible_enrollments)
+                ).values_list('studio_id', flat=True)
+                # Показываем все записи в этих студиях
+                queryset = queryset.filter(studio_id__in=accessible_studio_ids)
             except Teacher.DoesNotExist:
                 queryset = queryset.none()
             except Exception:
@@ -1307,7 +1300,6 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
 
         if search:
             print(f"DEBUG: Поиск: {search}")
-            # ИСПРАВЛЯЕМ поиск - убираем teacher__fio__icontains, так как teacher - ForeignKey
             queryset = queryset.filter(
                 Q(child__fio__icontains=search) |
                 Q(studio__name__icontains=search) |
@@ -1322,7 +1314,6 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
         sort_by = self.request.GET.get('sort', 'studio__name')
         sort_order = self.request.GET.get('order', 'asc')
 
-        # Правильные названия полей для сортировки
         sort_field_mapping = {
             'child': 'child__fio',
             'studio': 'studio__name',
@@ -1330,13 +1321,11 @@ class StudioChildrenListView(LoginRequiredMixin, ListView):
             'teacher': 'teacher__fio'
         }
 
-        # Если переданное поле есть в маппинге, используем его
         if sort_by in sort_field_mapping:
             sort_field = sort_field_mapping[sort_by]
         else:
-            sort_field = 'studio__name'  # значение по умолчанию
+            sort_field = 'studio__name'
 
-        # Применяем сортировку
         if sort_order == 'desc':
             queryset = queryset.order_by(f'-{sort_field}')
         else:
