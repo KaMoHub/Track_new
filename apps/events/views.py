@@ -204,6 +204,7 @@ class EventCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.created_by = self.request.user
+        form.instance.is_active = True
         # Педагоги = на утверждение, методисты/админы = опубликован
         if self.request.user.role == 'teacher':
             form.instance.status = 'pending'
@@ -285,6 +286,8 @@ class EventUpdateView(LoginRequiredMixin, UpdateView):
         if 'status' in form.cleaned_data:
             self.object.status = form.cleaned_data['status']
             self.object.save()
+        form.instance.is_active = True
+
         messages.success(self.request, 'Конкурс успешно обновлён.')
         return super().form_valid(form)
 
