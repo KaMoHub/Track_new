@@ -20,6 +20,10 @@ from datetime import datetime, date, timedelta
 from django.db.models import Count, Q
 from django.utils.timezone import make_aware
 
+# Получаем типы результатов и педагогов для отчета 4
+from apps.events.models import ResultType
+
+
 import openpyxl
 
 
@@ -1660,54 +1664,25 @@ class EnrollmentDeleteView(LoginRequiredMixin, DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
-# apps/children/views.py (добавляем новый класс отчета)
 class MonthlyAchievementsReportView(LoginRequiredMixin, View):
     """Генерация отчета 'Достижения детей за месяц'"""
 
     def get(self, request, *args, **kwargs):
-        # # Получаем параметры из запроса (месяц и год)
-        # month = request.GET.get('month', datetime.now().month)
-        # year = request.GET.get('year', datetime.now().year)
-        #
-        # try:
-        #     month = int(month)
-        #     year = int(year)
-        # except (ValueError, TypeError):
-        #     current_date = datetime.now()
-        #     month = current_date.month
-        #     year = current_date.year
-        #
-        # # Определяем даты начала и конца месяца
-        # start_date = date(year, month, 1)
-        # if month == 12:
-        #     end_date = date(year + 1, 1, 1) - timedelta(days=1)
-        # else:
-        #     end_date = date(year, month + 1, 1) - timedelta(days=1)
-        #
-        # # Название месяца для заголовка
-        # month_names = {
-        #     1: 'ЯНВАРЬ', 2: 'ФЕВРАЛЬ', 3: 'МАРТ', 4: 'АПРЕЛЬ',
-        #     5: 'МАЙ', 6: 'ИЮНЬ', 7: 'ИЮЛЬ', 8: 'АВГУСТ',
-        #     9: 'СЕНТЯБРЬ', 10: 'ОКТЯБРЬ', 11: 'НОЯБРЬ', 12: 'ДЕКАБРЬ'
-        # }
-        # month_name = month_names.get(month, '')
-
         # 1) Пытаемся взять произвольный период
         start_date_str = request.GET.get('start_date')
         end_date_str = request.GET.get('end_date')
 
         if start_date_str and end_date_str:
-            # формат: YYYY-MM-DD из <input type="date">
             try:
                 start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
                 end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
             except ValueError:
-                # если формат кривой – откатываемся к месячному режиму
                 start_date = end_date = None
         else:
             start_date = end_date = None
 
-        period_title = ''  # текст для заголовка
+        period_title = ''
+        filename_suffix = ''
 
         # 2) Если произвольный период не задан – работаем как раньше (месяц/год)
         if not start_date or not end_date:
@@ -1737,31 +1712,10 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
             period_title = f'ЗА {month_name} {year}'
             filename_suffix = f'{month:02d}_{year}'
         else:
-            # режим произвольного периода
             period_title = f'ЗА ПЕРИОД {start_date.strftime("%d.%m.%Y")} - {end_date.strftime("%d.%m.%Y")}'
             filename_suffix = f'{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}'
 
-        # Получаем данные участий за указанный месяц с фильтрацией по доступным студиям
-        from apps.participation.models import Participation
-
-        # # Получаем доступные участия
-        # accessible_participations = get_accessible_participations(request.user)
-        #
-        # # Фильтруем по периоду
-        # participations = accessible_participations.filter(
-        #     report_date__range=(start_date, end_date)
-        # ).select_related(
-        #     'child',
-        #     'enrollment__direction',
-        #     'enrollment__studio',
-        #     'enrollment__teacher',
-        #     'event',
-        #     'result_type'
-        # ).order_by(
-        #     'enrollment__direction__name',
-        #     'child__fio'
-        # )
-
+        # Получаем данные участий
         participations = get_participations_for_period(
             request.user, start_date, end_date
         ).order_by(
@@ -1781,8 +1735,19 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
             event_level = participation.event.get_level_display() if participation.event else ''
             teacher = str(participation.enrollment.teacher) if participation.enrollment.teacher else ''
 
-            # Форма участия
-            participation_form = self.get_participation_form(participation)
+            # Направление конкурса
+            competition_direction = participation.event.direction.name if participation.event and participation.event.direction else ''
+
+            # Формат участия
+            participation_format = ''
+            if participation.event and participation.event.participation_format:
+                format_map = {
+                    'offline': 'Очная',
+                    'mixed': 'Очно-дистанционная',
+                    'online': 'Заочная'
+                }
+                participation_format = format_map.get(participation.event.participation_format,
+                                                      participation.event.participation_format)
 
             # Результат
             result = ''
@@ -1801,7 +1766,8 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
                 'event_name': event_name,
                 'event_level': event_level,
                 'teacher': teacher,
-                'participation_form': participation_form,
+                'competition_direction': competition_direction,
+                'participation_format': participation_format,
                 'result': result,
                 'report_date': report_date
             })
@@ -1809,25 +1775,36 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
         # Создаем Excel файл
         df = pd.DataFrame(report_data)
 
-        # Если нет данных, создаем пустой DataFrame с правильными колонками
+        # Обновленный список колонок (10 колонок, без "Форма участия")
+        columns_order = [
+            'ФИО ребенка',
+            'Направление студии',
+            'Студия',
+            'Название мероприятия',
+            'Уровень',
+            'ФИО педагога',
+            'Направление конкурса',
+            'Формат участия',
+            'Результат',
+            'Дата участия'
+        ]
+
         if df.empty:
-            df = pd.DataFrame(columns=[
-                'ФИО ребенка', 'Направление', 'Студия', 'Название мероприятия',
-                'Уровень', 'ФИО педагога', 'Форма участия', 'Результат', 'Дата участия'
-            ])
+            df = pd.DataFrame(columns=columns_order)
         else:
-            # Переименовываем колонки на русский
             df = df.rename(columns={
                 'child_fio': 'ФИО ребенка',
-                'direction': 'Направление',
+                'direction': 'Направление студии',
                 'studio': 'Студия',
                 'event_name': 'Название мероприятия',
                 'event_level': 'Уровень',
                 'teacher': 'ФИО педагога',
-                'participation_form': 'Форма участия',
+                'competition_direction': 'Направление конкурса',
+                'participation_format': 'Формат участия',
                 'result': 'Результат',
                 'report_date': 'Дата участия'
             })
+            df = df[columns_order]
 
         # Создаем HttpResponse с Excel файлом
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -1836,56 +1813,36 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
         )
 
         with pd.ExcelWriter(response, engine='openpyxl') as writer:
-            # Основной лист с данными
             df.to_excel(writer, sheet_name='Достижения', index=False)
 
-            # Получаем workbook для форматирования
             workbook = writer.book
             worksheet = writer.sheets['Достижения']
 
-            # Добавляем заголовок
             self.add_report_header(worksheet, period_title, len(report_data))
-
-            # Форматируем таблицу
             self.format_worksheet(worksheet, df)
 
         return response
 
-    # Остальные методы класса остаются без изменений
-    def get_participation_form(self, participation):
-        """Определяем форму участия"""
-        if participation.event and hasattr(participation.event, 'is_offline'):
-            return 'Очная' if participation.event.is_offline else 'Дистанционная'
-
-        event_name = participation.event.name.lower() if participation.event else ''
-
-        if any(word in event_name for word in ['дистанц', 'online', 'онлайн']):
-            return 'Дистанционная'
-        elif any(word in event_name for word in ['очная', 'offline', 'оффлайн']):
-            return 'Очная'
-        else:
-            return 'Очная'
-
     def add_report_header(self, worksheet, period_title, records_count):
         """Добавляем заголовок отчета"""
-        """Добавляем заголовок отчета (поддерживает месяц или произвольный период)"""
         from openpyxl.styles import Font, Alignment
 
         worksheet.insert_rows(1, 3)
 
-        worksheet.merge_cells('A1:I1')
+        # Объединение до 10 колонок (A:J)
+        worksheet.merge_cells('A1:J1')
         title_cell = worksheet['A1']
         title_cell.value = 'ДОСТИЖЕНИЯ ДЕТЕЙ'
         title_cell.font = Font(size=14, bold=True)
         title_cell.alignment = Alignment(horizontal='center')
 
-        worksheet.merge_cells('A2:I2')
+        worksheet.merge_cells('A2:J2')
         period_cell = worksheet['A2']
         period_cell.value = period_title
         period_cell.font = Font(size=12, bold=True)
         period_cell.alignment = Alignment(horizontal='center')
 
-        worksheet.merge_cells('A3:I3')
+        worksheet.merge_cells('A3:J3')
         count_cell = worksheet['A3']
         count_cell.value = f'Всего записей: {records_count}'
         count_cell.font = Font(size=10)
@@ -1903,33 +1860,339 @@ class MonthlyAchievementsReportView(LoginRequiredMixin, View):
             bottom=Side(style='thin')
         )
 
-        header_font = Font(name='Times New Roman', size=14, bold=True)
+        header_font = Font(name='Times New Roman', size=12, bold=True)
         header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
         header_fill = PatternFill(start_color='FCD5B4', end_color='FCD5B4', fill_type='solid')
 
-        for row_num in range(1, 5):
-            for col_num, column_name in enumerate(df.columns, 1):
-                col_letter = get_column_letter(col_num)
-                cell = worksheet[f'{col_letter}{row_num}']
-                cell.font = header_font
-                cell.alignment = header_alignment
-                cell.fill = header_fill
+        # Форматируем заголовки (строка 4)
+        for col_num, column_name in enumerate(df.columns, 1):
+            col_letter = get_column_letter(col_num)
+            cell = worksheet[f'{col_letter}4']
+            cell.font = header_font
+            cell.alignment = header_alignment
+            cell.fill = header_fill
+            cell.border = thin_border
 
+        # Настройка ширины колонок (10 колонок)
         column_widths = {
-            'A': 30, 'B': 25, 'C': 25, 'D': 50, 'E': 20,
-            'F': 40, 'G': 15, 'H': 20, 'I': 12
+            'A': 30,  # ФИО ребенка
+            'B': 25,  # Направление студии
+            'C': 25,  # Студия
+            'D': 50,  # Название мероприятия
+            'E': 20,  # Уровень
+            'F': 35,  # ФИО педагога
+            'G': 25,  # Направление конкурса
+            'H': 20,  # Формат участия
+            'I': 20,  # Результат
+            'J': 12  # Дата участия
         }
 
         for col_letter, width in column_widths.items():
             worksheet.column_dimensions[col_letter].width = width
 
+        # Форматируем данные (начиная с 5 строки)
         for row_num in range(5, worksheet.max_row + 1):
             for col_num in range(1, len(df.columns) + 1):
                 col_letter = get_column_letter(col_num)
                 cell = worksheet[f'{col_letter}{row_num}']
                 cell.alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
-                cell.font = Font(name='Times New Roman', size=12)
+                cell.font = Font(name='Times New Roman', size=11)
                 cell.border = thin_border
+
+class UniqueChildrenByTeacherReportView(LoginRequiredMixin, View):
+    """Отчет: уникальные дети по педагогам за период с фильтрацией по типам результатов"""
+
+    def get(self, request, *args, **kwargs):
+        from apps.participation.models import Participation
+        from apps.events.models import ResultType
+        from apps.children.models import Teacher
+
+        # Получаем параметры фильтрации
+        result_type_ids = request.GET.getlist('result_types')
+        teacher_id = request.GET.get('teacher')
+        start_date_str = request.GET.get('start_date')
+        end_date_str = request.GET.get('end_date')
+
+        # Проверяем обязательные параметры
+        if not start_date_str or not end_date_str:
+            messages.error(request, 'Пожалуйста, укажите период отчета')
+            return HttpResponseRedirect(reverse('children:reports_dashboard'))
+
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            messages.error(request, 'Неверный формат даты')
+            return HttpResponseRedirect(reverse('children:reports_dashboard'))
+
+        # Получаем выбранные типы результатов (для фильтрации и для колонок)
+        selected_result_type_ids = [rid for rid in result_type_ids if rid] if result_type_ids else []
+
+        # Получаем объекты выбранных типов результатов
+        if selected_result_type_ids:
+            selected_result_types = ResultType.objects.filter(id__in=selected_result_type_ids).order_by('name')
+        else:
+            selected_result_types = ResultType.objects.all().order_by('name')
+            selected_result_type_ids = list(selected_result_types.values_list('id', flat=True))
+
+        # Получаем доступные участия для пользователя
+        participations = get_participations_for_period(request.user, start_date, end_date)
+
+        # Фильтр по типам результатов
+        if selected_result_type_ids:
+            participations = participations.filter(result_type_id__in=selected_result_type_ids)
+
+        # Фильтр по педагогу
+        if teacher_id:
+            try:
+                teacher = Teacher.objects.get(id=teacher_id)
+                participations = participations.filter(enrollment__teacher=teacher)
+            except Teacher.DoesNotExist:
+                pass
+
+        # Группируем по педагогам и детям, собираем статистику по типам результатов
+        teachers_data = {}
+        for participation in participations:
+            teacher = participation.enrollment.teacher
+            if not teacher:
+                continue
+
+            teacher_id_key = teacher.id
+            teacher_name = str(teacher)
+            child_id = participation.child.id
+            child_fio = participation.child.fio
+            result_type_id = participation.result_type_id
+
+            if teacher_id_key not in teachers_data:
+                teachers_data[teacher_id_key] = {
+                    'teacher_name': teacher_name,
+                    'children': {}  # child_id -> {child_fio, results: {result_type_id: count}}
+                }
+
+            if child_id not in teachers_data[teacher_id_key]['children']:
+                teachers_data[teacher_id_key]['children'][child_id] = {
+                    'child_fio': child_fio,
+                    'results': {}
+                }
+
+            # Подсчитываем количество по каждому типу результата
+            if result_type_id:
+                results = teachers_data[teacher_id_key]['children'][child_id]['results']
+                results[result_type_id] = results.get(result_type_id, 0) + 1
+
+        # Преобразуем в список для отображения
+        result_data = []
+        for teacher_id_key, data in teachers_data.items():
+            children_list = []
+            for child_id, child_data in data['children'].items():
+                child_info = {
+                    'child_fio': child_data['child_fio'],
+                    'results': child_data['results']
+                }
+                children_list.append(child_info)
+
+            # Сортируем детей по ФИО
+            children_list.sort(key=lambda x: x['child_fio'])
+
+            result_data.append({
+                'teacher_name': data['teacher_name'],
+                'children': children_list
+            })
+
+        # Сортируем педагогов по ФИО
+        result_data.sort(key=lambda x: x['teacher_name'])
+
+        # Создаем Excel файл
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = (
+            f'attachment; filename="unique_children_by_teacher_'
+            f'{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}.xlsx"'
+        )
+
+        with pd.ExcelWriter(response, engine='openpyxl') as writer:
+            # Лист 1: Сводка по педагогам (педагог + кол-во уникальных детей)
+            df_summary = pd.DataFrame([
+                {
+                    'Педагог': item['teacher_name'],
+                    'Кол-во уникальных детей': len(item['children'])
+                }
+                for item in result_data
+            ])
+            df_summary.to_excel(writer, sheet_name='Сводка по педагогам', index=False)
+
+            # Лист 2: Детальный список с колонками по выбранным типам результатов
+            # Формируем заголовки: Педагог, ФИО ребенка, [тип1], [тип2], ...
+            columns = ['Педагог', 'ФИО ребенка'] + [rt.name for rt in selected_result_types]
+
+            detail_rows = []
+            for item in result_data:
+                teacher_name = item['teacher_name']
+                for child in item['children']:
+                    row = {
+                        'Педагог': teacher_name,
+                        'ФИО ребенка': child['child_fio']
+                    }
+                    # Добавляем количество по каждому выбранному типу результата
+                    for rt in selected_result_types:
+                        row[rt.name] = child['results'].get(rt.id, 0)
+                    detail_rows.append(row)
+
+            if detail_rows:
+                df_detail = pd.DataFrame(detail_rows)
+                # Убеждаемся, что колонки идут в правильном порядке
+                df_detail = df_detail[columns]
+                df_detail.to_excel(writer, sheet_name='Детальный список', index=False)
+            else:
+                # Если нет данных, создаем пустой DataFrame с правильными колонками
+                df_empty = pd.DataFrame(columns=columns)
+                df_empty.to_excel(writer, sheet_name='Детальный список', index=False)
+
+            # Получаем workbook для форматирования
+            workbook = writer.book
+
+            # Форматируем лист "Сводка по педагогам"
+            if 'Сводка по педагогам' in workbook.sheetnames:
+                ws_summary = workbook['Сводка по педагогам']
+                self._format_summary_sheet(ws_summary)
+
+            # Форматируем лист "Детальный список"
+            if 'Детальный список' in workbook.sheetnames:
+                ws_detail = workbook['Детальный список']
+                self._format_detail_sheet(ws_detail, selected_result_types)
+
+            # Добавляем лист с параметрами отчета
+            ws_params = workbook.create_sheet('Параметры отчета')
+            self._add_params_sheet(ws_params, start_date, end_date, selected_result_type_ids, teacher_id,
+                                   selected_result_types)
+
+        return response
+
+    def _format_summary_sheet(self, worksheet):
+        """Форматирование листа со сводкой по педагогам"""
+        from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+
+        header_font = Font(name='Arial', size=12, bold=True, color='FFFFFF')
+        header_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
+        header_alignment = Alignment(horizontal='center', vertical='center')
+        thin_border = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
+        )
+
+        for cell in worksheet[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = thin_border
+
+        worksheet.column_dimensions['A'].width = 35
+        worksheet.column_dimensions['B'].width = 25
+
+        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):
+            for cell in row:
+                cell.alignment = Alignment(horizontal='left', vertical='center')
+                cell.border = thin_border
+                cell.font = Font(name='Arial', size=10)
+            if len(row) > 1:
+                row[1].alignment = Alignment(horizontal='center', vertical='center')
+
+    def _format_detail_sheet(self, worksheet, selected_result_types):
+        """Форматирование листа с детальным списком и колонками по выбранным типам результатов"""
+        from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+        from openpyxl.utils import get_column_letter
+
+        header_font = Font(name='Arial', size=11, bold=True, color='FFFFFF')
+        header_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
+        header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        thin_border = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
+        )
+        center_alignment = Alignment(horizontal='center', vertical='center')
+
+        # Форматируем заголовки
+        for col_idx, cell in enumerate(worksheet[1], 1):
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = thin_border
+
+        # Ширина колонок
+        worksheet.column_dimensions['A'].width = 35  # Педагог
+        worksheet.column_dimensions['B'].width = 35  # ФИО ребенка
+
+        # Колонки с выбранными типами результатов
+        for col_idx in range(3, len(selected_result_types) + 3):
+            col_letter = get_column_letter(col_idx)
+            worksheet.column_dimensions[col_letter].width = 12
+
+        # Форматируем данные
+        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):
+            for col_idx, cell in enumerate(row, 1):
+                cell.border = thin_border
+                cell.font = Font(name='Arial', size=10)
+
+                if col_idx == 1 or col_idx == 2:  # Педагог и ФИО ребенка
+                    cell.alignment = Alignment(horizontal='left', vertical='center')
+                else:  # Колонки с количеством
+                    cell.alignment = center_alignment
+                    if cell.value and cell.value > 0:
+                        cell.font = Font(name='Arial', size=10, bold=True, color='0066CC')
+
+    def _add_params_sheet(self, worksheet, start_date, end_date, selected_result_type_ids, teacher_id,
+                          selected_result_types):
+        """Добавляет лист с параметрами отчета"""
+        from openpyxl.styles import Font, Alignment, Border, Side
+        from apps.children.models import Teacher
+
+        worksheet.title = 'Параметры отчета'
+
+        worksheet.merge_cells('A1:B1')
+        worksheet['A1'] = 'Параметры отчета'
+        worksheet['A1'].font = Font(size=14, bold=True)
+        worksheet['A1'].alignment = Alignment(horizontal='center')
+
+        params = [
+            ('Дата начала', start_date.strftime('%d.%m.%Y')),
+            ('Дата окончания', end_date.strftime('%d.%m.%Y')),
+            ('Период', f"{start_date.strftime('%d.%m.%Y')} - {end_date.strftime('%d.%m.%Y')}"),
+            ('', ''),
+            ('Выбранные типы результатов (колонки в отчете):', ''),
+        ]
+
+        for rt in selected_result_types:
+            params.append((f'  ✓ {rt.name}', ''))
+
+        params.append(('', ''))
+        params.append(('Фильтр по педагогу', ''))
+        if teacher_id:
+            try:
+                teacher = Teacher.objects.get(id=teacher_id)
+                params.append((f'  {teacher}', ''))
+            except Teacher.DoesNotExist:
+                params.append(('  Не указан', ''))
+        else:
+            params.append(('  Все педагоги', ''))
+
+        row = 3
+        for param_name, param_value in params:
+            worksheet.cell(row=row, column=1, value=param_name)
+            worksheet.cell(row=row, column=2, value=param_value)
+            row += 1
+
+        thin_border = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
+        )
+
+        for row_cell in worksheet.iter_rows(max_row=worksheet.max_row):
+            for cell in row_cell:
+                cell.border = thin_border
+
+        worksheet.column_dimensions['A'].width = 30
+        worksheet.column_dimensions['B'].width = 40
 
 
 # apps/children/views.py (обновляем ReportsDashboardView)
@@ -1977,6 +2240,23 @@ class ReportsDashboardView(LoginRequiredMixin, TemplateView):
         monthly_report_base_url = reverse('children:monthly_achievements_report')
         quarter_report_base_url = reverse('children:semester_achievements_report')
 
+        # Получаем учебный год из профиля пользователя
+        if hasattr(self.request.user, 'profile'):
+            start = self.request.user.profile.academic_year_start
+            end = self.request.user.profile.academic_year_end
+            academic_year_start = date(start, 9, 1)  # 1 сентября
+            academic_year_end = date(end, 8, 31)  # 31 августа
+        else:
+            from apps.accounts.models import UserProfile
+            profile = UserProfile.objects.first()
+            if profile:
+                academic_year_start = date(profile.academic_year_start, 9, 1)
+                academic_year_end = date(profile.academic_year_end, 8, 31)
+            else:
+                current_year = date.today().year
+                academic_year_start = date(current_year, 9, 1)
+                academic_year_end = date(current_year + 1, 8, 31)
+
         context.update({
             'current_month': month,
             'current_year': year,
@@ -1984,6 +2264,10 @@ class ReportsDashboardView(LoginRequiredMixin, TemplateView):
             'monthly_stats': monthly_stats,
             'monthly_report_base_url': monthly_report_base_url,
             'quarter_report_base_url': quarter_report_base_url,
+            'academic_year_start': academic_year_start.strftime('%Y-%m-%d'),
+            'academic_year_end': academic_year_end.strftime('%Y-%m-%d'),
+            'result_types': ResultType.objects.all().order_by('name'),
+            'teachers': Teacher.objects.select_related('user').all().order_by('user__last_name'),
             'reports': [
                 {
                     'id': 1,
@@ -2017,6 +2301,18 @@ class ReportsDashboardView(LoginRequiredMixin, TemplateView):
                     'available': True,
                     'needs_params': True,
                     'params_type': 'quarter_year'
+                },
+                # ✅ НОВЫЙ ОТЧЕТ
+                {
+                    'id': 4,
+                    'title': 'Уникальные дети по педагогам',
+                    'description': 'Список уникальных детей, участвующих в конкурсах, с группировкой по педагогам',
+                    'url': reverse('children:unique_children_by_teacher_report'),
+                    'icon': 'bi-people',
+                    'color': 'warning',
+                    'available': True,
+                    'needs_params': True,
+                    'params_type': 'period_and_filters'  # новый тип параметров
                 }
             ]
         })

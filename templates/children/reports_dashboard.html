@@ -301,6 +301,56 @@
                     </div>
                 </div>
                 {% endif %}
+
+                {% if report.id == 4 %}
+                <!-- Форма для отчета 4: Уникальные дети по педагогам -->
+                <div class="mb-3">
+                    <label class="form-label small">Период отчета:</label>
+                    <div class="row">
+                        <div class="col-6 mb-2">
+                            <label for="report4_start_date" class="form-label small">Дата начала:</label>
+                            <input type="date" class="form-control form-control-sm" id="report4_start_date" value="{{ academic_year_start }}">
+                        </div>
+                        <div class="col-6 mb-2">
+                            <label for="report4_end_date" class="form-label small">Дата окончания:</label>
+                            <input type="date" class="form-control form-control-sm" id="report4_end_date" value="{{ academic_year_end }}">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small">Типы результатов:</label>
+                    <div class="border p-2 rounded" style="max-height: 150px; overflow-y: auto;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="report4_select_all" checked>
+                            <label class="form-check-label small" for="report4_select_all">
+                                <strong>Выбрать все</strong>
+                            </label>
+                        </div>
+                        <hr class="my-1">
+                        {% for result_type in result_types %}
+                        <div class="form-check">
+                            <input class="form-check-input report4-result-checkbox" type="checkbox"
+                                   name="result_types" value="{{ result_type.id }}" id="report4_result_{{ result_type.id }}" checked>
+                            <label class="form-check-label small" for="report4_result_{{ result_type.id }}">
+                                {{ result_type.name }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="report4_teacher" class="form-label small">Педагог:</label>
+                    <select class="form-select form-select-sm" id="report4_teacher">
+                        <option value="">-- Все педагоги --</option>
+                        {% for teacher in teachers %}
+                            <option value="{{ teacher.id }}">{{ teacher }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
             </div>
             <div class="card-footer">
                 {% if report.available %}
@@ -352,27 +402,27 @@
 <script>
 
     // --- режим отчёта 2: месяц / период ---
-const report2ModeMonth = document.getElementById('report2_mode_month');
-const report2ModeRange = document.getElementById('report2_mode_range');
-const report2MonthBlock = document.getElementById('report2_month_block');
-const report2RangeBlock = document.getElementById('report2_range_block');
+    const report2ModeMonth = document.getElementById('report2_mode_month');
+    const report2ModeRange = document.getElementById('report2_mode_range');
+    const report2MonthBlock = document.getElementById('report2_month_block');
+    const report2RangeBlock = document.getElementById('report2_range_block');
 
-function updateReport2Mode() {
-    if (!report2ModeMonth || !report2ModeRange) return;
-    if (report2ModeMonth.checked) {
-        report2MonthBlock.style.display = '';
-        report2RangeBlock.style.display = 'none';
-    } else {
-        report2MonthBlock.style.display = 'none';
-        report2RangeBlock.style.display = '';
+    function updateReport2Mode() {
+        if (!report2ModeMonth || !report2ModeRange) return;
+        if (report2ModeMonth.checked) {
+            report2MonthBlock.style.display = '';
+            report2RangeBlock.style.display = 'none';
+        } else {
+            report2MonthBlock.style.display = 'none';
+            report2RangeBlock.style.display = '';
+        }
     }
-}
 
-if (report2ModeMonth && report2ModeRange) {
-    report2ModeMonth.addEventListener('change', updateReport2Mode);
-    report2ModeRange.addEventListener('change', updateReport2Mode);
-    updateReport2Mode();
-}
+    if (report2ModeMonth && report2ModeRange) {
+        report2ModeMonth.addEventListener('change', updateReport2Mode);
+        report2ModeRange.addEventListener('change', updateReport2Mode);
+        updateReport2Mode();
+    }
 
     // --- режим отчёта 3: квартал / период ---
     const report3ModeQuarter = document.getElementById('report3_mode_quarter');
@@ -397,286 +447,299 @@ if (report2ModeMonth && report2ModeRange) {
         updateReport3Mode();
     }
 
-document.addEventListener('DOMContentLoaded', function() {
-const monthSelect = document.getElementById('monthSelect');
-const yearSelect = document.getElementById('yearSelect');
-const applyMonthFilter = document.getElementById('applyMonthFilter');
-const currentMonthDisplay = document.getElementById('currentMonthDisplay');
-const monthDropdownButton = document.getElementById('monthDropdownButton');
+    document.addEventListener('DOMContentLoaded', function() {
+        const monthSelect = document.getElementById('monthSelect');
+        const yearSelect = document.getElementById('yearSelect');
+        const applyMonthFilter = document.getElementById('applyMonthFilter');
+        const currentMonthDisplay = document.getElementById('currentMonthDisplay');
+        const monthDropdownButton = document.getElementById('monthDropdownButton');
 
-// Словарь для русских названий месяцев
-const monthNames = {
-    1: 'Январь', 2: 'Февраль', 3: 'Март', 4: 'Апрель',
-    5: 'Май', 6: 'Июнь', 7: 'Июль', 8: 'Август',
-    9: 'Сентябрь', 10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
-};
+        // Словарь для русских названий месяцев
+        const monthNames = {
+            1: 'Январь', 2: 'Февраль', 3: 'Март', 4: 'Апрель',
+            5: 'Май', 6: 'Июнь', 7: 'Июль', 8: 'Август',
+            9: 'Сентябрь', 10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
+        };
 
-// Элементы для обновления статистики в dropdown
-const statsTotal = document.getElementById('statsTotal');
-const statsChildren = document.getElementById('statsChildren');
-const statsEvents = document.getElementById('statsEvents');
+        // Элементы для обновления статистики в dropdown
+        const statsTotal = document.getElementById('statsTotal');
+        const statsChildren = document.getElementById('statsChildren');
+        const statsEvents = document.getElementById('statsEvents');
 
-// Карточки статистики на главной странице
-const cardTotal = document.querySelector('.card.bg-primary .card-title');
-const cardChildren = document.querySelector('.card.bg-success .card-title');
-const cardEvents = document.querySelector('.card.bg-info .card-title');
+        // Карточки статистики на главной странице
+        const cardTotal = document.querySelector('.card.bg-primary .card-title');
+        const cardChildren = document.querySelector('.card.bg-success .card-title');
+        const cardEvents = document.querySelector('.card.bg-info .card-title');
 
-// Функция для синхронизации дат во всех формах
-function syncAllDates(month, year) {
-    // Синхронизируем верхний селектор
-    monthSelect.value = month;
-    yearSelect.value = year;
-
-    // Синхронизируем отчет 1
-    const report1Month = document.getElementById('month_1');
-    const report1Year = document.getElementById('year_1');
-    if (report1Month && report1Year) {
-        report1Month.value = month;
-        report1Year.value = year;
-    }
-
-    // Синхронизируем отчет 2
-    const report2Month = document.getElementById('month_2');
-    const report2Year = document.getElementById('year_2');
-    if (report2Month && report2Year) {
-        report2Month.value = month;
-        report2Year.value = year;
-    }
-
-    // Обновляем отображение
-    currentMonthDisplay.textContent = formatMonthDisplay(month, year);
-}
-
-// Функция для форматирования отображения месяца
-function formatMonthDisplay(month, year) {
-    if (month && year) {
-        return `${monthNames[month]} ${year}`;
-    } else {
-        return `${year}`;
-    }
-}
-
-// Функция для обновления статистики через AJAX
-function updateMonthlyStats(month, year) {
-    const url = `{% url 'children:monthly_stats_api' %}?month=${month}&year=${year}`;
-
-    // Показываем индикатор загрузки
-    showLoadingState(true);
-
-    fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Синхронизируем все даты
-                syncAllDates(data.month, data.year);
-
-                // Обновляем статистику в dropdown
-                statsTotal.textContent = `Участий: ${data.stats.total}`;
-                statsChildren.textContent = `Детей: ${data.stats.unique_children}`;
-                statsEvents.textContent = `Конкурсов: ${data.stats.unique_events}`;
-
-                // Обновляем карточки статистики на главной странице
-                if (cardTotal) cardTotal.textContent = data.stats.total;
-                if (cardChildren) cardChildren.textContent = data.stats.unique_children;
-                if (cardEvents) cardEvents.textContent = data.stats.unique_events;
-
-                // Показываем уведомление об успехе
-                showToast(`Статистика за ${formatMonthDisplay(data.month, data.year)} обновлена`, 'success');
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching monthly stats:', error);
-            showToast('Ошибка при обновлении статистики', 'error');
-        })
-        .finally(() => {
-            showLoadingState(false);
-        });
-}
-
-// Функция для показа/скрытия индикатора загрузки
-function showLoadingState(show) {
-    const cards = document.querySelectorAll('.card .card-title');
-    cards.forEach(card => {
-        if (show) {
-            card.classList.add('updating');
-        } else {
-            card.classList.remove('updating');
-        }
-    });
-}
-
-// Функция для показа уведомлений
-function showToast(message, type = 'info') {
-    const alertClass = type === 'success' ? 'alert-success' :
-                      type === 'error' ? 'alert-danger' : 'alert-info';
-
-    const toast = document.createElement('div');
-    toast.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
-    toast.style.cssText = 'top: 20px; right: 20px; z-index: 1060; min-width: 300px;';
-    toast.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-
-    document.body.appendChild(toast);
-
-    setTimeout(() => {
-        if (toast.parentNode) {
-            toast.parentNode.removeChild(toast);
-        }
-    }, 3000);
-}
-
-// Обработчик применения фильтра (верхний селектор)
-applyMonthFilter.addEventListener('click', function() {
-    const month = monthSelect.value;
-    const year = yearSelect.value;
-
-    if (month && year) {
-        updateMonthlyStats(month, year);
-
-        // Закрываем dropdown
-        const dropdown = bootstrap.Dropdown.getInstance(monthDropdownButton);
-        if (dropdown) {
-            dropdown.hide();
-        }
-    }
-});
-
-// Слушаем изменения в верхнем селекторе (без применения)
-monthSelect.addEventListener('change', function() {
-    const month = monthSelect.value;
-    const year = yearSelect.value;
-    syncAllDates(month, year);
-});
-
-yearSelect.addEventListener('change', function() {
-    const month = monthSelect.value;
-    const year = yearSelect.value;
-    syncAllDates(month, year);
-});
-
-// Автоматическое обновление статистики при изменении параметров в отчете 1
-const report1Month = document.getElementById('month_1');
-const report1Year = document.getElementById('year_1');
-
-if (report1Month && report1Year) {
-    [report1Month, report1Year].forEach(element => {
-        element.addEventListener('change', function() {
-            const month = report1Month.value;
-            const year = report1Year.value;
-
-            // Синхронизируем все даты
-            syncAllDates(month, year);
-
-            // Обновляем статистику
-            updateMonthlyStats(month, year);
-        });
-    });
-}
-
-// Автоматическое обновление статистики при изменении параметров в отчете 2
-const report2Month = document.getElementById('month_2');
-const report2Year = document.getElementById('year_2');
-
-if (report2Month && report2Year) {
-    [report2Month, report2Year].forEach(element => {
-        element.addEventListener('change', function() {
-            const month = report2Month.value;
-            const year = report2Year.value;
-
-            // Синхронизируем все даты
-            syncAllDates(month, year);
-
-            // Обновляем статистику
-            updateMonthlyStats(month, year);
-        });
-    });
-}
-
-// Обработка кнопок выгрузки отчетов
-document.querySelectorAll('.download-report').forEach(button => {
-    button.addEventListener('click', function() {
-        const reportId = this.dataset.reportId;
-        const baseUrl = this.dataset.url;
-
-        if (reportId === '1') {
-            // Отчет 1
-            const month = document.getElementById('month_1').value;
-            const year = document.getElementById('year_1').value;
-            const top = document.getElementById('top_1').value;
-            const downloadUrl = `${baseUrl}?month=${month}&year=${year}&top=${top}`;
-            window.location.href = downloadUrl;
-
-        } else if (reportId === '2') {
-            // Отчет 2: месяц / период
-            const modeMonth = document.getElementById('report2_mode_month');
-            const isMonthMode = !modeMonth || modeMonth.checked;
-
-            if (isMonthMode) {
-                const month = document.getElementById('month_2').value;
-                const year = document.getElementById('year_2').value;
-                const downloadUrl = `${baseUrl}?mode=month&month=${month}&year=${year}`;
-                window.location.href = downloadUrl;
-            } else {
-                const startDate = document.getElementById('report2_start_date').value;
-                const endDate = document.getElementById('report2_end_date').value;
-
-                if (!startDate || !endDate) {
-                    showToast('Выберите даты начала и окончания периода', 'error');
-                    return;
-                }
-
-                const params = new URLSearchParams({
-                    mode: 'range',
-                    start_date: startDate,
-                    end_date: endDate,
+        // Обработка "Выбрать все" для отчета 4
+        const selectAllCheckbox = document.getElementById('report4_select_all');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                const checkboxes = document.querySelectorAll('.report4-result-checkbox');
+                checkboxes.forEach(cb => {
+                    cb.checked = selectAllCheckbox.checked;
                 });
-                const downloadUrl = `${baseUrl}?${params.toString()}`;
-                window.location.href = downloadUrl;
-            }
+            });
 
-        } else if (reportId === '3') {
-            // Отчет 3: квартал / период
-            const modeQuarter = document.getElementById('report3_mode_quarter');
-            const isQuarterMode = !modeQuarter || modeQuarter.checked;
-
-            if (isQuarterMode) {
-                const quarter = document.getElementById('quarter_3').value;
-                const year = document.getElementById('year_quarter_3').value;
-                const downloadUrl = `${baseUrl}?mode=quarter&quarter=${quarter}&year=${year}`;
-                window.location.href = downloadUrl;
-            } else {
-                const startDate = document.getElementById('report3_start_date').value;
-                const endDate = document.getElementById('report3_end_date').value;
-
-                if (!startDate || !endDate) {
-                    showToast('Выберите даты начала и окончания периода', 'error');
-                    return;
-                }
-
-                const params = new URLSearchParams({
-                    mode: 'range',
-                    start_date: startDate,
-                    end_date: endDate,
+            // Синхронизация "Выбрать все" при изменении отдельных чекбоксов
+            const resultCheckboxes = document.querySelectorAll('.report4-result-checkbox');
+            resultCheckboxes.forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const allChecked = Array.from(resultCheckboxes).every(cb => cb.checked);
+                    selectAllCheckbox.checked = allChecked;
                 });
-                const downloadUrl = `${baseUrl}?${params.toString()}`;
-                window.location.href = downloadUrl;
+            });
+        }
+
+        // Функция для синхронизации дат во всех формах
+        function syncAllDates(month, year) {
+            monthSelect.value = month;
+            yearSelect.value = year;
+
+            const report1Month = document.getElementById('month_1');
+            const report1Year = document.getElementById('year_1');
+            if (report1Month && report1Year) {
+                report1Month.value = month;
+                report1Year.value = year;
             }
 
-        } else {
-            // Все остальные отчеты без параметров
-            window.location.href = baseUrl;
+            const report2Month = document.getElementById('month_2');
+            const report2Year = document.getElementById('year_2');
+            if (report2Month && report2Year) {
+                report2Month.value = month;
+                report2Year.value = year;
+            }
+
+            currentMonthDisplay.textContent = formatMonthDisplay(month, year);
         }
+
+        function formatMonthDisplay(month, year) {
+            if (month && year) {
+                return `${monthNames[month]} ${year}`;
+            }
+            return `${year}`;
+        }
+
+        function updateMonthlyStats(month, year) {
+            const url = `{% url 'children:monthly_stats_api' %}?month=${month}&year=${year}`;
+
+            showLoadingState(true);
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        syncAllDates(data.month, data.year);
+
+                        statsTotal.textContent = `Участий: ${data.stats.total}`;
+                        statsChildren.textContent = `Детей: ${data.stats.unique_children}`;
+                        statsEvents.textContent = `Конкурсов: ${data.stats.unique_events}`;
+
+                        if (cardTotal) cardTotal.textContent = data.stats.total;
+                        if (cardChildren) cardChildren.textContent = data.stats.unique_children;
+                        if (cardEvents) cardEvents.textContent = data.stats.unique_events;
+
+                        showToast(`Статистика за ${formatMonthDisplay(data.month, data.year)} обновлена`, 'success');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching monthly stats:', error);
+                    showToast('Ошибка при обновлении статистики', 'error');
+                })
+                .finally(() => {
+                    showLoadingState(false);
+                });
+        }
+
+        function showLoadingState(show) {
+            const cards = document.querySelectorAll('.card .card-title');
+            cards.forEach(card => {
+                if (show) {
+                    card.classList.add('updating');
+                } else {
+                    card.classList.remove('updating');
+                }
+            });
+        }
+
+        function showToast(message, type = 'info') {
+            const alertClass = type === 'success' ? 'alert-success' :
+                              type === 'error' ? 'alert-danger' : 'alert-info';
+
+            const toast = document.createElement('div');
+            toast.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+            toast.style.cssText = 'top: 20px; right: 20px; z-index: 1060; min-width: 300px;';
+            toast.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 3000);
+        }
+
+        applyMonthFilter.addEventListener('click', function() {
+            const month = monthSelect.value;
+            const year = yearSelect.value;
+
+            if (month && year) {
+                updateMonthlyStats(month, year);
+
+                const dropdown = bootstrap.Dropdown.getInstance(monthDropdownButton);
+                if (dropdown) {
+                    dropdown.hide();
+                }
+            }
+        });
+
+        monthSelect.addEventListener('change', function() {
+            const month = monthSelect.value;
+            const year = yearSelect.value;
+            syncAllDates(month, year);
+        });
+
+        yearSelect.addEventListener('change', function() {
+            const month = monthSelect.value;
+            const year = yearSelect.value;
+            syncAllDates(month, year);
+        });
+
+        const report1Month = document.getElementById('month_1');
+        const report1Year = document.getElementById('year_1');
+
+        if (report1Month && report1Year) {
+            [report1Month, report1Year].forEach(element => {
+                element.addEventListener('change', function() {
+                    const month = report1Month.value;
+                    const year = report1Year.value;
+                    syncAllDates(month, year);
+                    updateMonthlyStats(month, year);
+                });
+            });
+        }
+
+        const report2Month = document.getElementById('month_2');
+        const report2Year = document.getElementById('year_2');
+
+        if (report2Month && report2Year) {
+            [report2Month, report2Year].forEach(element => {
+                element.addEventListener('change', function() {
+                    const month = report2Month.value;
+                    const year = report2Year.value;
+                    syncAllDates(month, year);
+                    updateMonthlyStats(month, year);
+                });
+            });
+        }
+
+        // Обработка кнопок выгрузки отчетов
+        document.querySelectorAll('.download-report').forEach(button => {
+            button.addEventListener('click', function() {
+                const reportId = this.dataset.reportId;
+                const baseUrl = this.dataset.url;
+
+                if (reportId === '1') {
+                    const month = document.getElementById('month_1').value;
+                    const year = document.getElementById('year_1').value;
+                    const top = document.getElementById('top_1').value;
+                    const downloadUrl = `${baseUrl}?month=${month}&year=${year}&top=${top}`;
+                    window.location.href = downloadUrl;
+
+                } else if (reportId === '2') {
+                    const modeMonth = document.getElementById('report2_mode_month');
+                    const isMonthMode = !modeMonth || modeMonth.checked;
+
+                    if (isMonthMode) {
+                        const month = document.getElementById('month_2').value;
+                        const year = document.getElementById('year_2').value;
+                        const downloadUrl = `${baseUrl}?mode=month&month=${month}&year=${year}`;
+                        window.location.href = downloadUrl;
+                    } else {
+                        const startDate = document.getElementById('report2_start_date').value;
+                        const endDate = document.getElementById('report2_end_date').value;
+
+                        if (!startDate || !endDate) {
+                            showToast('Выберите даты начала и окончания периода', 'error');
+                            return;
+                        }
+
+                        const params = new URLSearchParams({
+                            mode: 'range',
+                            start_date: startDate,
+                            end_date: endDate,
+                        });
+                        const downloadUrl = `${baseUrl}?${params.toString()}`;
+                        window.location.href = downloadUrl;
+                    }
+
+                } else if (reportId === '3') {
+                    const modeQuarter = document.getElementById('report3_mode_quarter');
+                    const isQuarterMode = !modeQuarter || modeQuarter.checked;
+
+                    if (isQuarterMode) {
+                        const quarter = document.getElementById('quarter_3').value;
+                        const year = document.getElementById('year_quarter_3').value;
+                        const downloadUrl = `${baseUrl}?mode=quarter&quarter=${quarter}&year=${year}`;
+                        window.location.href = downloadUrl;
+                    } else {
+                        const startDate = document.getElementById('report3_start_date').value;
+                        const endDate = document.getElementById('report3_end_date').value;
+
+                        if (!startDate || !endDate) {
+                            showToast('Выберите даты начала и окончания периода', 'error');
+                            return;
+                        }
+
+                        const params = new URLSearchParams({
+                            mode: 'range',
+                            start_date: startDate,
+                            end_date: endDate,
+                        });
+                        const downloadUrl = `${baseUrl}?${params.toString()}`;
+                        window.location.href = downloadUrl;
+                    }
+
+                } else if (reportId === '4') {
+                    // Отчет 4: Уникальные дети по педагогам
+                    const startDate = document.getElementById('report4_start_date').value;
+                    const endDate = document.getElementById('report4_end_date').value;
+
+                    // Собираем выбранные типы результатов
+                    const resultCheckboxes = document.querySelectorAll('.report4-result-checkbox:checked');
+                    const resultTypes = Array.from(resultCheckboxes).map(cb => cb.value);
+
+                    const teacherId = document.getElementById('report4_teacher').value;
+
+                    if (!startDate || !endDate) {
+                        showToast('Выберите даты начала и окончания периода', 'error');
+                        return;
+                    }
+
+                    const params = new URLSearchParams();
+                    params.append('start_date', startDate);
+                    params.append('end_date', endDate);
+
+                    resultTypes.forEach(rt => params.append('result_types', rt));
+                    if (teacherId) {
+                        params.append('teacher', teacherId);
+                    }
+
+                    const downloadUrl = `${baseUrl}?${params.toString()}`;
+                    window.location.href = downloadUrl;
+                } else {
+                    window.location.href = baseUrl;
+                }
+            });
+        });
+
+        const initialMonth = monthSelect.value;
+        const initialYear = yearSelect.value;
+        syncAllDates(initialMonth, initialYear);
     });
-});
-
-
-// Инициализация при загрузке страницы
-// Убедимся, что все даты синхронизированы
-const initialMonth = monthSelect.value;
-const initialYear = yearSelect.value;
-syncAllDates(initialMonth, initialYear);
-});
 </script>
 {% endblock %}

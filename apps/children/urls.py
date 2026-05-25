@@ -59,4 +59,7 @@ urlpatterns = [
     path('reports/monthly-stats/', views.MonthlyStatsAPIView.as_view(), name='monthly_stats_api'),
     path('export-excel/', views.export_children_excel, name='export_excel'),
     path('export-enrollments-excel/', views.export_enrollments_excel, name='export_enrollments_excel'),
+
+    # apps/children/urls.py - добавьте эту строку в urlpatterns
+    path('reports/unique-children-by-teacher/', views.UniqueChildrenByTeacherReportView.as_view(), name='unique_children_by_teacher_report'),
 ]
